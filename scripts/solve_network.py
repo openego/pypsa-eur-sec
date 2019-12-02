@@ -147,7 +147,6 @@ def add_chp_constraints(network):
         def chp_nom(model,node):
             return network.links.at[node + " urban central CHP electric","efficiency"]*options['chp_parameters']['p_nom_ratio']*model.link_p_nom[node + " urban central CHP electric"] == network.links.at[node + " urban central CHP heat","efficiency"]*options['chp_parameters']['p_nom_ratio']*model.link_p_nom[node + " urban central CHP heat"]
 
-
         network.model.chp_nom = pypsa.opt.Constraint(urban_central,rule=chp_nom)
 
 
@@ -230,12 +229,11 @@ def solve_network(n, config=None, solver_log=None, opts=None):
         # make sure we freed everything we can
         gc.collect()
 
-        #from pyomo.opt import ProblemFormat
-        #print("Saving model to MPS")
-        #n.model.write('/home/ka/ka_iai/ka_kc5996/projects/pypsa-eur/128-B-I.mps', format=ProblemFormat.mps)
-        #print("Model is saved to MPS")
-        #sys.exit()
-
+#        from pyomo.opt import ProblemFormat
+#        print("Saving model to MPS")
+#        n.model.write('/home/ws/bw0928/Dokumente/pypsa-eur-sec/model.mps', format=ProblemFormat.mps)
+#        print("Model is saved to MPS")
+#        sys.exit()
 
         status, termination_condition = \
         pypsa.opf.network_lopf_solve(n,
@@ -347,6 +345,7 @@ def solve_network(n, config=None, solver_log=None, opts=None):
 
     return n
 
+#%%
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():

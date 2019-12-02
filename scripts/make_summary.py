@@ -4,7 +4,7 @@ from six import iteritems
 import sys
 
 sys.path.append("../pypsa-eur/scripts")
-
+sys.path.append("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts/")
 import pandas as pd
 
 import numpy as np
@@ -47,7 +47,7 @@ def assign_carriers(n):
 
 def assign_locations(n):
     for c in n.iterate_components(n.one_port_components|n.branch_components):
-
+        print(c.name)
         ifind = pd.Series(c.df.index.str.find(" ",start=4),c.df.index)
 
         for i in ifind.unique():
@@ -76,7 +76,7 @@ def calculate_nodal_cfs(n,label,nodal_cfs):
 
         cf_c = p_c/capacities_c
 
-        index = pd.MultiIndex.from_tuples([(c.list_name,) + t for t in cf_c.index.to_list()])
+        index = pd.MultiIndex.from_tuples([(c.list_name,) + t for t in list(cf_c.index)])
         nodal_cfs = nodal_cfs.reindex(nodal_cfs.index|index)
         nodal_cfs.loc[index,label] = cf_c.values
 
@@ -114,8 +114,10 @@ def calculate_cfs(n,label,cfs):
 def calculate_nodal_costs(n,label,nodal_costs):
     #Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
     for c in n.iterate_components(n.branch_components|n.controllable_one_port_components^{"Load"}):
+        print(c)
+        print(c.name)
         capital_costs = (c.df.capital_cost*c.df[opt_name.get(c.name,"p") + "_nom_opt"]).groupby((c.df.location,c.df.carrier)).sum()
-        index = pd.MultiIndex.from_tuples([(c.list_name,"capital") + t for t in capital_costs.index.to_list()])
+        index = pd.MultiIndex.from_tuples([(c.list_name,"capital") + t for t in list(capital_costs.index)])
         nodal_costs = nodal_costs.reindex(nodal_costs.index|index)
         nodal_costs.loc[index,label] = capital_costs.values
 
@@ -136,7 +138,7 @@ def calculate_nodal_costs(n,label,nodal_costs):
             c.df.loc[items,"marginal_cost"] = -20.
 
         marginal_costs = (p*c.df.marginal_cost).groupby((c.df.location,c.df.carrier)).sum()
-        index = pd.MultiIndex.from_tuples([(c.list_name,"marginal") + t for t in marginal_costs.index.to_list()])
+        index = pd.MultiIndex.from_tuples([(c.list_name,"marginal") + t for t in list(marginal_costs.index)])
         nodal_costs = nodal_costs.reindex(nodal_costs.index|index)
         nodal_costs.loc[index,label] = marginal_costs.values
 
@@ -197,7 +199,7 @@ def calculate_nodal_capacities(n,label,nodal_capacities):
     #Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
     for c in n.iterate_components(n.branch_components|n.controllable_one_port_components^{"Load"}):
         nodal_capacities_c = c.df[opt_name.get(c.name,"p") + "_nom_opt"].groupby((c.df.location,c.df.carrier)).sum()
-        index = pd.MultiIndex.from_tuples([(c.list_name,) + t for t in nodal_capacities_c.index.to_list()])
+        index = pd.MultiIndex.from_tuples([(c.list_name,) + t for t in list(nodal_capacities_c.index)])
         nodal_capacities = nodal_capacities.reindex(nodal_capacities.index|index)
         nodal_capacities.loc[index,label] = nodal_capacities_c.values
 
@@ -527,6 +529,7 @@ def make_summaries(networks_dict):
         assign_locations(n)
 
         for output in outputs:
+            print(output)
             df[output] = globals()["calculate_" + output](n, label, df[output])
 
     return df
@@ -537,7 +540,7 @@ def to_csv(df):
     for key in df:
         df[key].to_csv(snakemake.output[key])
 
-
+#%%
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
@@ -548,9 +551,9 @@ if __name__ == "__main__":
             snakemake.config = yaml.load(f)
 
         #overwrite some options
-        snakemake.config["run"] = "190418-test-rebase"
-        snakemake.config["scenario"]["lv"] = [1.0, 1.25]
-        snakemake.config["scenario"]["sector_opts"] = ["Co2L0-3H-T-H-B-I","Co2L0-3H-T-H-B-I-onwind0","Co2L0p1-3H-T-H-B-I","Co2L0-3H-T-H-B-I-onwind0-solar2-offwind2"]
+#        snakemake.config["run"] = "190418-test-rebase"
+#        snakemake.config["scenario"]["lv"] = [1.0, 1.25]
+#        snakemake.config["scenario"]["sector_opts"] = ["Co2L0-3H-T-H-B-I","Co2L0-3H-T-H-B-I-onwind0","Co2L0p1-3H-T-H-B-I","Co2L0-3H-T-H-B-I-onwind0-solar2-offwind2"]
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'
         snakemake.output = Dict()

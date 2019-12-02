@@ -163,7 +163,7 @@ def plot_energy():
 
     fig.savefig(snakemake.output.energy,transparent=True)
 
-
+# %%
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():

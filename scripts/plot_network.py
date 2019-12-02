@@ -367,7 +367,7 @@ def plot_series(carrier="AC"):
 
     fig.savefig("{}/series-{}-{}-{}.pdf".format(snakemake.config['summary_dir'],carrier,start,stop),transparent=True)
 
-
+# %%
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
@@ -377,7 +377,9 @@ if __name__ == "__main__":
         with open('config.yaml') as f:
             snakemake.config = yaml.load(f)
         snakemake.input = Dict()
-        snakemake.output = Dict()
+        snakemake.output = Dict(
+                map=snakemake.config['results_dir'] + snakemake.config['run'] + "/maps/elec_s_38_lv1.0__Co2L0p0-24H-T-H-B-I-costs-all.pdf",
+	            today=snakemake.config['results_dir'] +snakemake.config['run'] + "/maps/elec_s_38_lv1.0__Co2L0p0-24H-T-H-B-I-today.pdf")
         snakemake.input.scenario = "lv1.0"  #lv1.0, lv1.25, lvopt
         snakemake.config["run"] = "190503-es2050-lv"
         snakemake.input.network = "{}{}/postnetworks/elec_s_181_{}__Co2L0-3H-T-H-B-I-solar3.nc".format(snakemake.config['results_dir'],
