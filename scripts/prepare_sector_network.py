@@ -1,4 +1,4 @@
-5#  coding: utf-8
+5# coding: utf-8
 import numpy as np
 import scipy as sp
 import xarray as xr
@@ -64,13 +64,13 @@ def space_heat_retro(demand, years, r_rate=None, dE=None, option=None):
         """
         after http://www.europarl.europa.eu/RegData/etudes/STUD/2016/587326/IPOL_STU(2016)587326_EN.pdf p.22
         and own calculation on the assumption that 1% of the building stock is renovated extensively,
-        - > 20% of the building stock are yearly renovated
+        - > 1.5% of the building stock are yearly renovated
         wherat 85% undergo moderate renovations (10% energy savings), 10% moderate (30% energy savings)
         and 5% extensive (60% energy savings)
         """
         demand_future = demand
         for i in range(1, years):
-            demand_future = 0.8 * demand_future + 0.2 * \
+            demand_future = 0.985 * demand_future + 0.015 * \
                 demand_future * (0.85 * 0.9 + 0.1 * 0.7 + 0.05 * 0.4)
     elif option == "EU-target":
         """ the EU parliament targets a space heat reduction of 80% until 2050"""
@@ -632,33 +632,46 @@ def add_storage(network):
                  capital_cost=(costs.at["fuel cell", "fixed"] *
                                costs.at["fuel cell", "efficiency"]))  # NB: fixed cost is per MWel
 
-    network.add("Bus",
-                "EU H2",
-                carrier="H2")
-
-    # TODO Add capital costs, efficiency losses
-    network.madd("Link",
-                 nodes + " H2 pipeline",
-                 bus0=nodes + " H2",
-                 bus1="EU H2",
-                 p_min_pu=-1,
-                 p_nom_extendable=True,
-                 carrier="H2 pipeline")
-
     if options['hydrogen_underground_storage']:
         h2_capital_cost = costs.at["hydrogen underground storage", "fixed"]
     else:
         h2_capital_cost = costs.at["hydrogen storage", "fixed"]
 
     network.madd("Store",
-                 ["EU H2 Store"],
-                 bus="EU H2",
-                 # nodes + " H2 Store",
-                 # bus=nodes + " H2",
+                 nodes + " H2 Store",
+                 bus=nodes + " H2",
                  e_nom_extendable=True,
                  e_cyclic=True,
                  carrier="H2 Store",
                  capital_cost=h2_capital_cost)
+
+    h2_links = pd.DataFrame(columns=["bus0","bus1","length"])
+    prefix = "H2 pipeline "
+    connector = " -> "
+    attrs = ["bus0", "bus1", "length"]
+
+    candidates = pd.concat([n.lines[attrs], n.links.loc[n.links.carrier == "DC", attrs]])
+
+    for candidate in candidates.index:
+        buses = [candidates.at[candidate, "bus0"],candidates.at[candidate, "bus1"]]
+        buses.sort()
+        name = prefix + buses[0] + connector + buses[1]
+        if name not in h2_links.index:
+            h2_links.at[name, "bus0"] = buses[0]
+            h2_links.at[name, "bus1"] = buses[1]
+            h2_links.at[name, "length"] = candidates.at[candidate,"length"]
+
+    #TODO Add efficiency losses
+    network.madd("Link",
+                 h2_links.index,
+                 bus0=h2_links.bus0.values + " H2",
+                 bus1=h2_links.bus1.values + " H2",
+                 p_min_pu=-1,
+                 p_nom_extendable=True,
+                 length=h2_links.length.values,
+                 capital_cost=costs.at['H2 pipeline', 'fixed']*h2_links.length.values,
+#                 marginal_cost=costs.at['H2 pipeline', 'VOM']*h2_links.length.values,
+                 carrier="H2 pipeline")
 
     network.add("Carrier", "battery")
 
@@ -821,7 +834,6 @@ def add_transport(network):
 
 def add_heat(network):
     print("adding heat")
-# %%
     sectors = ["residential", "services"]
 
     # stores the different groups of nodes
@@ -999,6 +1011,7 @@ def add_heat(network):
         if options["chp"]:
 
             if name == "urban central":
+                
                 # additional bus, to which we can also connect biomass
                 network.madd("Bus",
                              nodes[name] + " urban central CHP",
@@ -1049,20 +1062,19 @@ def add_heat(network):
                              efficiency2=costs.at['micro CHP', 'efficiency-heat'],
                              efficiency3=costs.at['gas', 'CO2 intensity'],
                              capital_cost=costs.at['micro CHP', 'fixed'])
-# %%
+
     # NB: this currently doesn't work for pypsa-eur model
     if options['retrofitting']:
+        print("adding retrofitting")
+        import glob
         space_heat_demand = pd.concat(
             [heat_demand["residential space"], heat_demand["services space"]], axis=1)
-        retro1 = pd.read_csv(snakemake.input.retro_cost_energy1, index_col=0)
-        retro2 = pd.read_csv(snakemake.input.retro_cost_energy2, index_col=0)
-        retro3 = pd.read_csv(snakemake.input.retro_cost_energy3, index_col=0)
-        tax_w = pd.read_csv(snakemake.input.retro_tax_w, index_col=0)
-        retro1.rename({"EL": "GR", "UK": "GB"}, inplace=True)
-        retro2.rename({"EL": "GR", "UK": "GB"}, inplace=True)
-        retro3.rename({"EL": "GR", "UK": "GB"}, inplace=True)
-        tax_w.rename({"EL": "GR", "UK": "GB"}, inplace=True)
-        network.add("Carrier", "retrofitting")
+        all_files = glob.glob(snakemake.input.retro_cost_energy + "/*.csv")
+        retro_steps = {}
+        for file in all_files:
+            strength = int(file.split("_")[-1].split(".csv")[0])
+            retro_steps[strength] = (pd.read_csv(file, index_col=0).rename({"EL": "GR", "UK": "GB"}))
+        tax_w = pd.read_csv(snakemake.input.retro_tax_w, index_col=0).rename({"EL": "GR", "UK": "GB"})
         sectors = ["res", "nres", "tot"]
         carriers = [
             "residential rural heat",
@@ -1070,7 +1082,14 @@ def add_heat(network):
             "residential urban decentral heat",
             "services urban decentral heat",
             "urban central heat"]
-        dic = {s: ("res" if "residential" in s  else "nres" if "services" in s else "tot") for s in carriers}
+        dic = {s: ("res" if "residential" in s else "nres" if "services" in s
+                   else "tot") for s in carriers}
+        w_space = {}
+        for s in ["residential", "services"]:
+            w_space[s] = heat_demand[s+" space"]/(heat_demand[s+" space"] + heat_demand[s +" water"])
+        w_space["tot"] = (heat_demand["services space"] + heat_demand["residential space"])/heat_demand.groupby(level=[1], axis=1).sum()
+        
+        network.add("Carrier", "retrofitting")
 
         for node in list(heat_demand.columns.levels[1]):
 
@@ -1079,98 +1098,79 @@ def add_heat(network):
             space_heat_demand_node.columns = ["res", "nres"]
             ct = node[:2]
             square_metres = {}
-            if ct in retro1.index:
+            if ct in retro_steps[0].index:
                 for sector in sectors:
                     square_metres[sector] = pop_layout.loc[retro_nodes,
-                                                           "fraction"] * retro1.loc[ct, "floor " + sector] * 10**6
+                                                           "fraction"] * retro_steps[0].loc[ct, "floor " + sector] * 10**6
 
-                space_heat_demand_node["tot"] = (space_heat_demand_node["nres"]+ space_heat_demand_node["res"]) * (1 + options['district_heating_loss'])
-#                space_peak = space_heat_demand_node.max()
-#                space_pu = space_heat_demand_node.divide(space_peak)
+#                space_heat_demand_node["tot"] = (space_heat_demand_node["nres"] + space_heat_demand_node["res"]) \
+#                                                 * (1 + options['district_heating_loss'])
 
                 for carrier in carriers:
-                    if (node + " " + carrier) in list(
-                            network.buses[network.buses.carrier == carrier].index):
+                    if (node + " " + carrier) in list(network.loads_t.p_set.columns):
                         
                                                 
                         if "urban" in carrier:
-                            f = urban_fraction[retro_nodes]
+                            f = urban_fraction[node]
                         else:
-                            f = 1 - urban_fraction[retro_nodes]
+                            f = 1 - urban_fraction[node]
+                        
+                        if "residential" in carrier:
+                            w_space_c = w_space["residential"][node]
                             
-#                        space_heat_demand_node = network.loads_t.p_set[node + " " + carrier]
-                        space_heat_demand_c = space_heat_demand_node[dic[carrier]] * f.item()
+                        if "services" in carrier:
+                            w_space_c = w_space["services"][node]
+                        
+                        else:
+                            w_space_c = w_space["tot"][node]
+                            
+                            
+#                        space_heat_demand_c = space_heat_demand_node[dic[carrier]] * f
+                        space_heat_demand_c = network.loads_t.p_set[node + " " + carrier] * w_space_c
                         space_peak_c = space_heat_demand_c.max()
-#                        space_peak_c = space_heat_demand_node.max()
                         if space_peak_c == 0:
                             continue
                         space_pu_c = (space_heat_demand_c/space_peak_c).to_frame(name=node)
+                        p_max_pu=round(space_pu_c.iloc[:,0],3).apply(lambda x: 0.01 if x<0.01 else x).to_frame(name=node)
+                        p_min_pu = round(space_pu_c.iloc[:,0],3).to_frame(name=node)
+#                        p_max_pu=(space_pu_c.iloc[:,0]).apply(lambda x: 0.01 if x<0.01 else x).to_frame(name=node)
+#                        p_min_pu = space_pu_c
                         
-#                        space_pu_c = space_pu[dic[carrier]].to_frame()
-#                        space_pu_c = space_heat_demand_node.divide(space_peak_c).to_frame()
-                        dE = retro1.loc[ct, "dE " + dic[carrier]]
-                        dE2 = retro2.loc[ct, "dE " + dic[carrier]]
-                        dE3 = retro3.loc[ct, "dE " + dic[carrier]]
-                        square_metres_c = square_metres[dic[carrier]].item()
-                        cost_c = retro1.loc[ct,"cost "+dic[carrier]] * tax_w.loc[ct].item()
-                        cost_c2 = retro2.loc[ct,"cost "+dic[carrier]] * tax_w.loc[ct].item()
-                        cost_c3 = retro3.loc[ct,"cost "+dic[carrier]] * tax_w.loc[ct].item()
-                        
-                        if any((network.loads_t.p_set[node + " " + carrier] - (space_pu_c * (1 - dE) * space_peak_c).iloc[:,0]) < 0):
-                            print(ct," ", carrier," ", node)
-                        network.madd('Generator',
-                                     retro_nodes,
-                                     suffix=' retrofitting I ' + carrier,
-                                     bus=node + " " + carrier,
-                                     type="retrofitting I",
-                                     carrier="retrofitting",
-                                     p_nom_extendable=True,
-                                     p_nom_max=(1 - dE) * space_peak_c,
-                                     p_max_pu=space_pu_c,
-#                                     p_min_pu=space_pu_c,
-                                     country=ct,
-                                     capital_cost=f * cost_c * square_metres_c / \
-                                     ((1 - dE) * space_peak_c),
-                                     marginal_cost=0
-                                     )
-                        
-                        network.madd('Generator',
-                                     retro_nodes,
-                                     suffix=' retrofitting II ' + carrier,
-                                     bus=node + " " + carrier,
-                                     type="retrofitting II",
-                                     carrier="retrofitting",
-                                     p_nom_extendable=True,
-                                     p_nom_max=(1 - dE2) * space_peak_c,
-                                     p_max_pu=space_pu_c,
-                                     p_min_pu=space_pu_c,
-                                     country=ct,
-                                     capital_cost=f * cost_c2 * square_metres_c / \
-                                     ((1 - dE2) * space_peak_c),
-                                     marginal_cost=0
-                                     )
-                        
-#                        network.madd('Generator',
-#                                     retro_nodes,
-#                                     suffix=' retrofitting III ' + carrier,
-#                                     bus=node + " " + carrier,
-#                                     type="retrofitting III",
-#                                     carrier="retrofitting",
-#                                     p_nom_extendable=True,
-#                                     p_nom_max=(1 - dE3) * space_peak_c,
-#                                     p_max_pu=space_pu_c,
-#                                     p_min_pu=space_pu_c,
-#                                     country=ct,
-#                                     capital_cost=f * cost_c3 * square_metres_c / \
-#                                     ((1 - dE3) * space_peak_c),
-#                                     marginal_cost=0
-#                                     )
+                        square_metres_c = f * square_metres[dic[carrier]].item()
+                        dE, cost_c = {}, {}
+                        for i in retro_steps.keys():
+                            if i == 2:
+                                dE[i] = retro_steps[i].loc[ct, "dE " + dic[carrier]]
+                                cost_c[i] = retro_steps[i].loc[ct,"cost "+dic[carrier]] * tax_w.loc[ct].item() 
+                                network.madd('Generator',
+                                             retro_nodes,
+                                             suffix=' retrofitting {} '.format(i) + carrier,
+                                             bus=node + " " + carrier,
+                                             strength=' retrofitting {} '.format(i),
+                                             type = carrier, 
+                                             carrier="retrofitting",
+                                             p_nom_extendable=True,
+                                             p_nom_max=(1 - dE[i]) * space_peak_c,
+                                             p_nom_min=(1 - dE[i]) * space_peak_c,
+                                             p_max_pu=p_max_pu,
+#                                             p_min_pu=p_min_pu,
+                                             country=ct,
+                                             capital_cost=cost_c[i] * square_metres_c / \
+                                             ((1-dE[i]) * space_peak_c)
+                                             )
 
             else:
                 print("no retrofitting data for ", ct,
                       " the country is skipped.")
-
-# %%
+#  
+#capital_cost={}   
+#total = {} 
+#for i in retro_steps.keys():
+#    dE[i] = retro_steps[i].loc[ct, "dE " + dic[carrier]]
+#    cost_c[i] = retro_steps[i].loc[ct,"cost "+dic[carrier]] * tax_w.loc[ct].item() 
+#    capital_cost[i]=cost_c[i] * square_metres_c /   ((1-dE[i]) * space_peak_c)
+#    total[i] = ((1-dE[i]) * space_peak_c) * capital_cost[i]
+              
 def add_biomass(network):
 
     print("adding biomass")
@@ -1219,25 +1219,27 @@ def add_biomass(network):
                  carrier="biogas to gas",
                  efficiency2=-costs.at['gas', 'CO2 intensity'],
                  p_nom_extendable=True)
-
+    
+    if options["chp"]:
+        print("biomass chp")
     # AC buses with district heating
-    urban_central = n.buses.index[n.buses.carrier == "urban central heat"]
-    if not urban_central.empty:
-        urban_central = urban_central.str[:-len(" urban central heat")]
+        urban_central = network.buses.index[network.buses.carrier == "urban central heat"]
+        if not urban_central.empty:
+            urban_central = urban_central.str[:-len(" urban central heat")]
 
-        # with BECCS
-        network.madd("Link",
-                     urban_central + " solid biomass to urban central CHP",
-                     bus0="EU solid biomass",
-                     bus1=urban_central + " urban central CHP",
-                     bus2="co2 atmosphere",
-                     bus3="co2 stored",
-                     efficiency2=-costs.at['solid biomass',
-                                           'CO2 intensity'] * options["ccs_fraction"],
-                     efficiency3=costs.at['solid biomass',
-                                          'CO2 intensity'] * options["ccs_fraction"],
-                     carrier="solid biomass to urban central CHP",
-                     p_nom_extendable=True)
+            # with BECCS
+            network.madd("Link",
+                         urban_central + " solid biomass to urban central CHP",
+                         bus0="EU solid biomass",
+                         bus1=urban_central + " urban central CHP",
+                         bus2="co2 atmosphere",
+                         bus3="co2 stored",
+                         efficiency2=-costs.at['solid biomass',
+                                               'CO2 intensity'] * options["ccs_fraction"],
+                         efficiency3=costs.at['solid biomass',
+                                              'CO2 intensity'] * options["ccs_fraction"],
+                         carrier="solid biomass to urban central CHP",
+                         p_nom_extendable=True)
 
 
 def add_industry(network):
@@ -1504,9 +1506,7 @@ if __name__ == "__main__":
                 biomass_potentials='data/biomass_potentials.csv',
                 heat_profile="data/heat_load_profile_BDEW.csv",
                 costs="data/costs.csv",
-                retro_cost_energy1="data/retro_cost_tot_3.csv",
-                retro_cost_energy2="data/retro_cost_tot_5.csv",
-                retro_cost_energy3="data/retro_cost_tot_6.csv",
+                retro_cost_energy = "data/retro",  
                 retro_tax_w="data/eu_elec_taxes_weighting.csv",
                 traffic_data="data/emobility/",
                 clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
@@ -1531,7 +1531,7 @@ if __name__ == "__main__":
                 solar_thermal_rural="resources/solar_thermal_rural_{network}_s{simpl}_{clusters}.nc",
                 timezone_mappings='data/timezone_mappings.csv'),
             output=['networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc'])
-        with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml') as f:
+        with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
             snakemake.config = yaml.load(f)
 
     logging.basicConfig(level=snakemake.config['logging_level'])
@@ -1631,5 +1631,5 @@ if __name__ == "__main__":
                 limit = o[o.find(tech) + len(tech):]
                 limit = float(limit.replace("p", ".").replace("m", "-"))
                 restrict_technology_potential(n, tech, limit)
-
+# %%
     n.export_to_netcdf(snakemake.output[0])

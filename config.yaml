@@ -2,15 +2,15 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: '190807-resserv_bdew'
+run: '191108-h2_pipeline_network'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
   simpl: ['']
   lv: [1.0]   #, 1.125, 1.25, 1.5, 2.0]# or opt
-  clusters: [90] #[90, 128, 181] #[45, 64, 90, 128, 181, 256] #, 362] # (2**np.r_[5.5:9:.5]).astype(int) minimum is 37
+  clusters: [38] #[90, 128, 181] #[45, 64, 90, 128, 181, 256] #, 362] # (2**np.r_[5.5:9:.5]).astype(int) minimum is 37
   opts: ['']  #for pypsa-eur
-  sector_opts: [Co2L0p0-24H-T-H-B-I]#,Co2L0p1-3H-T-H-B-I,Co2L0p25-3H-T-H-B-I,Co2L0p5-3H-T-H-B-I]#[Co2L0-3H-T-H-B-I-onwind0-solar3,Co2L0-3H-T-H-B-I-onwind0p125-solar3,Co2L0-3H-T-H-B-I-onwind0p25-solar3,Co2L0-3H-T-H-B-I-onwind0p50-solar3,Co2L0-3H-T-H-B-I-solar3]#,Co2L0-3H-T-H-B-I-onwind0p25-solar3]#,Co2L0p05-3H-T-H-B-I,Co2L0p10-3H-T-H-B-I,Co2L0p20-3H-T-H-B-I,Co2L0p30-3H-T-H-B-I,Co2L0p50-3H-T-H-B-I]#[Co2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0-3H-T-H,Co2L0p20-3H-T-H]   #Co2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0p20-3H-T-HCo2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0p30-3H-T-H,Co2L0p50-3H-T-H] #Co2L-3H,Co2L-3H-T,, LC-FL, LC-T, Ep-T, Co2L-T]
+  sector_opts: [Co2L0-12H-T-H-B-I] #,Co2L0p1-3H-T-H-B-I,Co2L0p25-3H-T-H-B-I,Co2L0p5-3H-T-H-B-I]#[Co2L0-3H-T-H-B-I-onwind0-solar3,Co2L0-3H-T-H-B-I-onwind0p125-solar3,Co2L0-3H-T-H-B-I-onwind0p25-solar3,Co2L0-3H-T-H-B-I-onwind0p50-solar3,Co2L0-3H-T-H-B-I-solar3]#,Co2L0-3H-T-H-B-I-onwind0p25-solar3]#,Co2L0p05-3H-T-H-B-I,Co2L0p10-3H-T-H-B-I,Co2L0p20-3H-T-H-B-I,Co2L0p30-3H-T-H-B-I,Co2L0p50-3H-T-H-B-I]#[Co2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0-3H-T-H,Co2L0p20-3H-T-H]   #Co2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0p20-3H-T-HCo2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0p30-3H-T-H,Co2L0p50-3H-T-H] #Co2L-3H,Co2L-3H-T,, LC-FL, LC-T, Ep-T, Co2L-T]
   # Co2L will give default (5%); Co2L0p25 will give 25% CO2 emissions; Co2Lm0p05 will give 5% negative emissions
 
 
@@ -63,11 +63,9 @@ sector:
   'v2g' : True #allows feed-in to grid from EV battery
   'transport_fuel_cell_share' : 0.   #0 means all EVs, 1 means all FCs
   'shipping_average_efficiency' : 0.4 #For conversion of fuel oil to propulsion in 2011
-  'time_dep_hp_cop' : True
+  'time_dep_hp_cop' : False
   'space_heating_fraction' : 1.0 #fraction of space heating active
-  'retrofitting' : False
-  #'retroI-fraction' : 0.25
-  #'retroII-fraction' : 0.55
+  'retrofitting' : True
   #'retrofitting-cost_factor' : 1.0
   'retrofitting_exogenous' : False # assuming an annual natural retro-rate
   'years' : 30  # number of years from today to year of optimisation
@@ -77,13 +75,13 @@ sector:
   'tes' : True
   'tes_tau' : 3.
   'boilers' : True
-  'chp' : True
+  'chp' : False
   'chp_parameters':
     'eta_elec' : 0.468 #electrical efficiency with no heat output
     'c_v' : 0.15 #loss of fuel for each addition of heat
     'c_m' : 0.75 #backpressure ratio
     'p_nom_ratio' : 1. #ratio of max heat output to max electrical output
-  'solar_thermal' : True
+  'solar_thermal' : False
   'solar_cf_correction': 0.788457  # =  >>> 1/1.2683
   'marginal_cost_storage' : 0. #1e-4
   'methanation' : True
@@ -153,9 +151,9 @@ solving:
     #feasopt_tolerance: 1.e-6
 
 industry:
-  'DRI_ratio' : 0.5 #ratio of blast-furnace steel transformed into DRI + electric arc
-  'H2_DRI' : 1.7   #H2 consumption in Direct Reduced Iron (DRI),  MWh_H2/ton_Steel
-  'Al_to_scrap' : 0.5 # ratio of primary-route Aluminum transformed into scrap
+  'DRI_ratio' : 0.5 #ratio of today's blast-furnace steel (60% primary route, 40% secondary) to future assumption (30% primary, 70% secondary), transformed into DRI + electric arc
+  'H2_DRI' : 1.7   #H2 consumption in Direct Reduced Iron (DRI),  MWh_H2/ton_Steel from Vogl et al (2018) doi:10.1016/j.jclepro.2018.08.279
+  'Al_to_scrap' : 0.5 # ratio of primary-route Aluminum transformed into scrap (today 40% to future 20% primary route)
   'H2_for_NH3' : 85000 # H2 for NH3 transformed from SMR to electrolyzed-H2, in GWh/year following Lechtenböhmer(2016)
 
 plotting:
