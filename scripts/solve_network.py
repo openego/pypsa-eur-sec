@@ -1,12 +1,12 @@
 import os
 
-os.system("conda config --add channels http://conda.anaconda.org/gurobi")
+# os.system("conda config --add channels http://conda.anaconda.org/gurobi")
 
-os.system("conda install -y gurobi=8.1.0")
+# os.system("conda install -y gurobi=9.0.0")
 
-os.system("conda install -y git")
+# os.system("conda install -y git")
 
-os.system("pip install -U git+git://github.com/PyPSA/pypsa.git@nomopyomo#egg=pypsa")
+# os.system("pip install -U git+git://github.com/PyPSA/pypsa.git@nomopyomo#egg=pypsa")
 
 #import sys
 
@@ -63,7 +63,8 @@ def prepare_network(n, solve_opts=None):
         solve_opts = snakemake.config['solving']['options']
 
     if 'clip_p_max_pu' in solve_opts:
-        for df in (n.generators_t.p_max_pu, n.storage_units_t.inflow):
+        print("clip_p_max_pu: ", solve_opts['clip_p_max_pu'])
+        for df in (n.generators_t.p_max_pu, n.generators_t.p_min_pu, n.storage_units_t.inflow):
             df.where(df>solve_opts['clip_p_max_pu'], other=0., inplace=True)
 
     if solve_opts.get('load_shedding'):
@@ -338,9 +339,9 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
         snakemake = MockSnakemake(
-            wildcards=dict(network='elec', simpl='', clusters='45', lv='1.25', opts='Co2L-3H-T-H'),
-            input=dict(network="networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"),
-            output=["results/networks/s{simpl}_{clusters}_lv{lv}_{opts}-test.nc"],
+            wildcards=dict(network='elec', simpl='', clusters='38', lv='1.0', opts='Co2L0-12H-T-H-B-I'),
+            input=dict(network="results/191108-h2_pipeline_network/prenetworks/{network}_s{simpl}_{clusters}_lv{lv}__{opts}.nc"),
+            output=["results/191108-h2_pipeline_network/postnetworks/s{simpl}_{clusters}_lv{lv}_{opts}-test.nc"],
             log=dict(gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_gurobi-test.log",
                      python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python-test.log")
         )
