@@ -1126,7 +1126,7 @@ def add_heat(network):
         
         network.add("Carrier", "retrofitting")
 
-        for node in list(space_heat_demand.columns):
+        for node in list(heat_demand.columns.levels[1]):
             retro_nodes = pd.Index([node])
             space_heat_demand_node = space_heat_demand[retro_nodes]
             space_heat_demand_node.columns = ["res", "nres"]
@@ -1579,7 +1579,7 @@ if __name__ == "__main__":
                 lv='2',
                 opts='Co2L-3H',
                 sector_opts="[Co2L0p0-24H-T-H-B-I]"),
-            input=dict(
+                input=dict(
                 network='../pypsa-eur/networks/{network}_s{simpl}_{clusters}.nc',
                 energy_totals_name='data/energy_totals.csv',
                 co2_totals_name='data/co2_totals.csv',
