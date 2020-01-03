@@ -651,25 +651,20 @@ def add_storage(network):
     attrs = ["bus0", "bus1", "length"]
 
     candidates = pd.concat([n.lines[attrs], n.links.loc[n.links.carrier == "DC", attrs]])
-
-#    for candidate in candidates.index:
-#        print(candidate)
-#        buses = [candidates.at[candidate, "bus0"],candidates.at[candidate, "bus1"]]
-#        buses.sort()
-#        name = prefix + buses[0] + connector + buses[1]
-#        if name not in h2_links.index:
-#            h2_links.at[name, "bus0"] = buses[0]
-#            h2_links.at[name, "bus1"] = buses[1]
-#            h2_links.at[name, "length"] = candidates.at[candidate,"length"]
-    candidates.rename(index=lambda x: prefix+candidates.at[x,"bus0"]+connector+candidates.at[x,"bus1"], inplace=True)
-    h2_links = candidates.drop_duplicates()
+ 
+    positive_order = candidates.bus0 < candidates.bus1
+    candidates_p = candidates[positive_order]
+    candidates_n = candidates[~ positive_order].rename(columns={"bus0":"bus1", "bus1":"bus0"})
+    candidates = pd.concat((candidates_p, candidates_n), sort=False)
     
-
+    h2_links = candidates.groupby(["bus0", "bus1"], as_index=False).mean()
+    h2_links.rename(index=lambda x: prefix+h2_links.at[x,"bus0"]+connector+h2_links.at[x,"bus1"], inplace=True)
+    
     #TODO Add efficiency losses
     network.madd("Link",
                  h2_links.index,
-                 bus0=h2_links.bus0.values + " H2",
-                 bus1=h2_links.bus1.values + " H2",
+                 bus0=h2_links.bus0 + " H2",
+                 bus1=h2_links.bus1 + " H2",
                  p_min_pu=-1,
                  p_nom_extendable=True,
                  length=h2_links.length.values,
