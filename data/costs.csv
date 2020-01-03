@@ -40,7 +40,7 @@ solar-utility,2030,FOM,3,%/year,ETIP PV
 biomass,2030,FOM,4.526935,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 geothermal,2030,FOM,2.358491,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 coal,2030,FOM,1.923076,%/year,DIW DataDoc http://hdl.handle.net/10419/80348 PC (Advanced/SuperC)
-lignite,2030,FOM,2.0,%/year,DIW DataDoc http://hdl.handle.net/10419/80348 PC (Advanced/SuperC)
+lignite,2030,FOM,2,%/year,DIW DataDoc http://hdl.handle.net/10419/80348 PC (Advanced/SuperC)
 oil,2030,FOM,1.5,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 PHS,2030,FOM,1,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 hydro,2030,FOM,1,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
@@ -96,6 +96,7 @@ hydrogen underground storage,2030,investment,0.5,EUR/kWh,maximum from https://ww
 hydrogen underground storage,2030,lifetime,40,years,http://www.acatech.de/fileadmin/user_upload/Baumstruktur_nach_Website/Acatech/root/de/Publikationen/Materialien/ESYS_Technologiesteckbrief_Energiespeicher.pdf
 H2 pipeline,2030,investment,267,EUR/MW/km,Welder et al https://doi.org/10.1016/j.ijhydene.2018.12.156
 H2 pipeline,2030,lifetime,40,years,TODO
+H2 pipeline,2030,efficiency,0.8,per unit,"safety margin (MAOP) https://en.wikipedia.org/wiki/Barlow%27s_formula, TODO"
 H2 pipeline,2030,FOM,3,%/year,TODO
 methanation,2030,investment,1000,EUR/kWH2,Schaber thesis
 methanation,2030,lifetime,25,years,Schaber thesis
@@ -189,7 +190,7 @@ central gas CHP,2030,FOM,3,%/year,DEA
 central gas CHP,2030,efficiency,0.45,per unit,DEA (condensation mode)
 central gas CHP,2030,c_b,0.7,per unit,DEA (backpressure ratio)
 central gas CHP,2030,c_v,0.17,per unit,DEA (loss of fuel for additional heat)
-central gas CHP,2030,p_nom_ratio,1.,per unit,
+central gas CHP,2030,p_nom_ratio,1,per unit,
 central gas CHP,2030,VOM,0.82,EUR/MWh,DEA
 central gas CHP CCS,2030,lifetime,30,years,DEA
 central gas CHP CCS,2030,investment,1900,EUR/kWel,DEA + DIW extra for CCS on gas plant
@@ -197,7 +198,7 @@ central gas CHP CCS,2030,FOM,3,%/year,DEA
 central gas CHP CCS,2030,efficiency,0.405,per unit,DEA (condensation mode + efficiency loss due to capture)
 central gas CHP CCS,2030,c_b,0.7,per unit,DEA (backpressure ratio)
 central gas CHP CCS,2030,c_v,0.17,per unit,DEA (loss of fuel for additional heat)
-central gas CHP CCS,2030,p_nom_ratio,1.,per unit,
+central gas CHP CCS,2030,p_nom_ratio,1,per unit,
 central gas CHP CCS,2030,VOM,0.82,EUR/MWh,DEA
 central solid biomass CHP,2030,lifetime,40,years,DEA for wood pellets CHP
 central solid biomass CHP,2030,investment,1990,EUR/kWel,DEA for wood pellets CHP
@@ -205,7 +206,7 @@ central solid biomass CHP,2030,FOM,3,%/year,DEA for wood pellets CHP
 central solid biomass CHP,2030,efficiency,0.52,per unit,DEA for wood pellets CHP (condensation mode)
 central solid biomass CHP,2030,c_b,1.01,per unit,DEA for wood pellets CHP (backpressure ratio)
 central solid biomass CHP,2030,c_v,0.15,per unit,DEA for wood pellets CHP (loss of fuel for additional heat)
-central solid biomass CHP,2030,p_nom_ratio,1.,per unit,
+central solid biomass CHP,2030,p_nom_ratio,1,per unit,
 central solid biomass CHP,2030,VOM,2.2,EUR/MWh,DEA for wood pellets CHP
 central solid biomass CHP CCS,2030,lifetime,40,years,DEA for wood pellets CHP
 central solid biomass CHP CCS,2030,investment,2590,EUR/kWel,DEA for wood pellets CHP + DIW extra for CCS on gas plant
@@ -213,7 +214,7 @@ central solid biomass CHP CCS,2030,FOM,3,%/year,DEA for wood pellets CHP
 central solid biomass CHP CCS,2030,efficiency,0.468,per unit,DEA for wood pellets CHP (condensation mode + efficiency loss due to capture)
 central solid biomass CHP CCS,2030,c_b,1.01,per unit,DEA for wood pellets CHP (backpressure ratio)
 central solid biomass CHP CCS,2030,c_v,0.15,per unit,DEA for wood pellets CHP (loss of fuel for additional heat)
-central solid biomass CHP CCS,2030,p_nom_ratio,1.,per unit,
+central solid biomass CHP CCS,2030,p_nom_ratio,1,per unit,
 central solid biomass CHP CCS,2030,VOM,2.2,EUR/MWh,DEA for wood pellets CHP
 micro CHP,2030,lifetime,20,years,DEA for PEMFC with methane (for unit consuming 2kW CH4)
 micro CHP,2030,investment,4500,EUR/kWCH4,DEA for PEMFC with methane (for unit consuming 2kW CH4)
