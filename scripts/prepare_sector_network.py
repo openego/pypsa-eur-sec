@@ -669,7 +669,8 @@ def add_storage(network):
                  p_nom_extendable=True,
                  length=h2_links.length.values,
                  capital_cost=costs.at['H2 pipeline', 'fixed']*h2_links.length.values,
-                 efficiency = costs.at['H2 pipeline', 'efficiency'],
+                 # efficiency = costs.at['H2 pipeline', 'efficiency']**h2_links.length.values,
+                 p_max_pu = 0.72,
 #                 marginal_cost=costs.at['H2 pipeline', 'VOM']*h2_links.length.values,
                  carrier="H2 pipeline")
 

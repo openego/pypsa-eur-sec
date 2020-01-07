@@ -96,7 +96,7 @@ hydrogen underground storage,2030,investment,0.5,EUR/kWh,maximum from https://ww
 hydrogen underground storage,2030,lifetime,40,years,http://www.acatech.de/fileadmin/user_upload/Baumstruktur_nach_Website/Acatech/root/de/Publikationen/Materialien/ESYS_Technologiesteckbrief_Energiespeicher.pdf
 H2 pipeline,2030,investment,267,EUR/MW/km,Welder et al https://doi.org/10.1016/j.ijhydene.2018.12.156
 H2 pipeline,2030,lifetime,40,years,TODO
-H2 pipeline,2030,efficiency,0.8,per unit,"safety margin (MAOP) https://en.wikipedia.org/wiki/Barlow%27s_formula, TODO"
+H2 pipeline,2030,efficiency,0.999923,per unit/km,"https://www.sciencedirect.com/science/article/pii/S0301421504001193  safety margin (MAOP) https://en.wikipedia.org/wiki/Barlow%27s_formula, TODO"
 H2 pipeline,2030,FOM,3,%/year,TODO
 methanation,2030,investment,1000,EUR/kWH2,Schaber thesis
 methanation,2030,lifetime,25,years,Schaber thesis
