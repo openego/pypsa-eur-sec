@@ -876,9 +876,10 @@ def add_heat(network):
             heat_demand[sector + " space"] = heat_demand[sector + " space"].apply(lambda x: space_heat_retro(
                 x, options["years"], options["retro_rate"], options["dE"], option=options["retro_opt"]))
 
-    for name in ["residential rural", "services rural", 
+    heat_types = ["residential rural", "services rural", 
                  "residential urban decentral", "services urban decentral",
-                 "urban central"]:
+                 "urban central"]
+    for name in heat_types:
 
         name_type = "central" if name == "urban central" else "decentral"
 
@@ -1094,31 +1095,20 @@ def add_heat(network):
     if options['retrofitting']:
         
         print("adding retrofitting")
-        import glob
         space_heat_demand = pd.concat(
             [heat_demand["residential space"], heat_demand["services space"]], axis=1)
-        # retrofitting costs
-        all_files = glob.glob(snakemake.input.retro_cost_energy + "/*.csv")
-        retro_steps = {}
-        for file in all_files:
-            strength = int(file.split("_")[-1].split(".csv")[0])
-            retro_steps[strength] = (pd.read_csv(file, index_col=0).rename({"EL": "GR", "UK": "GB"}))
-        # weighting depending on the taxes
-        tax_w = pd.read_csv(snakemake.input.retro_tax_w, index_col=0).rename({"EL": "GR", "UK": "GB"})
+
+        retro_cost = pd.read_csv(snakemake.input.retro_cost_energy,
+                                  index_col=[0,1], skipinitialspace=True, header=[0,1])
+        floor_area = pd.read_csv(snakemake.input.floor_area, index_col=[0])
         
-        sectors = ["res", "nres", "tot"]
-        carriers = [
-            "residential rural heat",
-            "services rural heat",
-            "residential urban decentral heat",
-            "services urban decentral heat",
-            "urban central heat"]
-        dic = {s: ("res" if "residential" in s else "nres" if "services" in s
-                   else "tot") for s in carriers}
+        index = pd.MultiIndex.from_product([pop_layout.index, sectors])
+        square_metres = pd.DataFrame(np.nan, index=index, columns=["m²"])
+
         # weighting for share of space heat demand
         w_space = {}   
-        for s in ["residential", "services"]:
-            w_space[s] = heat_demand[s+" space"]/(heat_demand[s+" space"] + heat_demand[s +" water"])
+        for sector in sectors:
+            w_space[sector] = heat_demand[sector+" space"]/(heat_demand[sector+" space"] + heat_demand[sector +" water"])
         w_space["tot"] = (heat_demand["services space"] + heat_demand["residential space"])/heat_demand.groupby(level=[1], axis=1).sum()
         
         network.add("Carrier", "retrofitting")
@@ -1126,15 +1116,12 @@ def add_heat(network):
         for node in list(heat_demand.columns.levels[1]):
             retro_nodes = pd.Index([node])
             space_heat_demand_node = space_heat_demand[retro_nodes]
-            space_heat_demand_node.columns = ["res", "nres"]
+            space_heat_demand_node.columns = sectors
             ct = node[:2]
-            square_metres = {}
-            if ct in retro_steps[0].index:
-                for sector in sectors:
-                    square_metres[sector] = pop_layout.loc[retro_nodes,
-                                                           "fraction"] * retro_steps[0].loc[ct, "floor " + sector] * 10**6
+            if ct in floor_area.index.levels[0]:
+                square_metres.loc[ct] =  * floor_area.loc[ct, "value"] * 10**6
 
-                for carrier in carriers:
+                for carrier in heat_types:
                     if (node + " " + carrier) in list(network.loads_t.p_set.columns):
                         
                         if "urban" in carrier:
