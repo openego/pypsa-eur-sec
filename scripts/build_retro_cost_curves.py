@@ -24,17 +24,18 @@ Structure:
 import pandas as pd
 import matplotlib.pyplot as plt
 
+pd.options.mode.chained_assignment = None 
 # %%  ******** (1) ASSUMPTIONS - PARAMETERS **********************************
 
 k = 0.035   # thermal conductivity standard value
 interest_rate = 0.04
 
 annualise_cost = True   # annualise the investment costs
-tax_weighting = True   # weight costs depending on taxes in countries
-construction_index = True   # weight costs depending on costruction_index
+tax_weighting = False   # weight costs depending on taxes in countries
+construction_index = False   # weight costs depending on costruction_index
 plot = False
 
-l_strength = ["0.02", "0.025", "0.03"]  # insulation thickness
+l_strength = ["0.05", "0.15"]  # additional insulation thickness
 # strenght of relative retrofitting depending on the component
 l_weight = pd.DataFrame({"weight": [4, 2, 2, 0.5]},
                          index=["Roof", "Walls", "Floor", "Windows"])
@@ -81,9 +82,11 @@ country_iso_dic.update({'Norway': 'NO', 'Iceland': 'IS', 'Montenegro': 'ME',
 # average component surface --------------------------------------------------
 # TODO average component surface from service sector
 average_surface = (pd.read_csv(snakemake.input.average_surface,
-                               nrows=2, header=1)
-                   .rename({0: "SFH", 1: "MFH"}, axis="index"))
-average_surface.columns = ["Building type", "surface", "height", "Roof",
+                               nrows=3, header=1, index_col=0)
+                   .rename({'Single/two family house': 'Single family- Terraced houses',
+                            'Large apartment house': 'Multifamily houses',
+                            'Apartment house': 'Appartment blocks'}, axis="index")).iloc[:, :6]
+average_surface.columns = ["surface", "height", "Roof",
                            "Walls", "Floor", "Windows"]
 average_surface_w = average_surface[components].apply(lambda x: x/x.sum(), axis=1)
 
@@ -119,9 +122,11 @@ for ct in missing_area_ct:
     else:
         area_tot.loc[averaged_data.index] = averaged_data
 
-# shape to countries of interest
+#  only take considered countries into account
 countries = ct_total.index
 area_tot = area_tot.loc[countries]
+# get share of residential and sevice floor area
+sec_w = (area_tot / area_tot.groupby(["country"]).sum())["value"]
 # costs for retrofitting -----------------------------------------------------
 cost_retro = pd.read_csv(snakemake.input.cost_germany,
                          nrows=4, index_col=0, usecols=[0, 1, 2, 3])
@@ -148,15 +153,18 @@ if tax_weighting:
 # %% ********** (3) CALCULATE COST-ENERGY-CURVES ****************************
 energy_saved = u_values[['country', 'sector', 'subsector', 'bage', 'type']]
 costs = u_values[['country', 'sector', 'subsector', 'bage', 'type']]
+# for missing weighting of surfaces of building types assume Apartment blocks
+u_values["assumed_subsector"] = u_values.subsector
+u_values.assumed_subsector[~u_values.subsector.isin(average_surface.index)] = 'Appartment blocks'
 
 for l in l_strength:
     u_values[l] = u_values.apply(lambda x: 
                             k/((k/x.value)+(float(l)*l_weight.loc[x.type][0])), axis=1)
     energy_saved[l] = u_values.apply(lambda x: x[l]/x.value * 
-                                          average_surface_w.loc["SFH", x.type], axis=1)
+                                          average_surface_w.loc[x.assumed_subsector, x.type], axis=1)
     costs[l] = u_values.apply(lambda x: (cost_retro.loc[x.type, "cost_var"] * 100 * float(l)*l_weight.loc[x.type][0]
                                     + cost_retro.loc[x.type, "cost_fix"]) 
-                            * average_surface.loc["SFH", x.type]/average_surface.loc["SFH", "surface"], axis=1) 
+                            * average_surface.loc[x.assumed_subsector, x.type]/average_surface.loc[x.assumed_subsector, "surface"], axis=1) 
 
 # energy and costs per country, sector, subsector and year
 e_tot = energy_saved.groupby(['country', 'sector', 'subsector', 'bage']).sum()
@@ -194,7 +202,15 @@ if tax_weighting:
     for ct in list(map_for_missings.keys() - tax_w.index):
         tax_w[ct] = tax_w.loc[map_for_missings[ct]].mean()
     res.cost = res.cost.apply(lambda x: x*tax_w[x.index.levels[0]])
-  
+    
+# get the total cost-energy-savings weight by sector area
+tot = res.apply(lambda col: col*sec_w, axis=0).groupby(level=0).sum()
+tot.set_index(pd.MultiIndex.from_product([list(tot.index), ["tot"]]), inplace=True)
+res = res.append(tot).unstack().stack()  
+
+summed_area = pd.DataFrame(area_tot.groupby("country").sum())
+summed_area.set_index(pd.MultiIndex.from_product([list(summed_area.index), ["tot"]]), inplace=True)
+area_tot = area_tot.append(summed_area).unstack().stack()  
 # %% ******* (4) SAVE + PLOT  ************************************************
 res.to_csv(snakemake.output.retro_cost)
 area_tot.to_csv(snakemake.output.floor_area)
@@ -204,39 +220,41 @@ if plot:
     fig = plt.figure()
     ax = fig.add_subplot(111)
     for ct in res.index.levels[0]:
-        dE = (res.loc[ct, "dE"]*100).mean()
-        cost = res.loc[ct, "cost"].mean()
+        dE = (res.loc[(ct, "tot"), "dE"]*100)
+        cost = res.loc[(ct, "tot"), "cost"]
         df = pd.concat([dE, cost], axis=1)
         df.columns = ["dE", "cost/m²"]
         df.plot(x="dE", y="cost/m²", grid=True, label=ct, ax=ax)
         plt.xlim([0, 100])
+        plt.ylim([0,7])
         plt.ylabel("Euro/m²")
         plt.xlabel("energy demand in % of unrefurbished")
-    ax.legend(bbox_to_anchor=(1.2, 1.0), ncol=2)
+    ax.legend(bbox_to_anchor=(1.5, 1.0), ncol=2)
 
 # %% for testing
 if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake
-        os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
-        snakemake = MockSnakemake(
-            wildcards=dict(
-                network='elec',
-                simpl='',
-                clusters='38',
-                lv='1',
-                opts='Co2L-3H',
-                sector_opts="[Co2L0p0-24H-T-H-B-I]"),
-                input=dict(
-                    building_stock="data/retro/data_building_stock.csv",
-                    tax_w="data/retro/electricity_taxes_eu.csv",
-                    construction_index="data/retro/comparative_level_investment.csv",
-                    average_surface="data/retro/average_surface_components.csv",
-                    floor_area_missing="data/retro/floor_area_missing.csv",
-                    clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
-                    cost_germany="retro_cost_germany.csv"),
-            output=dict(
-                    retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
-                    floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv")
-            )
-        with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
-            snakemake.config = yaml.load(f)
+    import yaml
+    from vresutils.snakemake import MockSnakemake
+    os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
+    snakemake = MockSnakemake(
+        wildcards=dict(
+            network='elec',
+            simpl='',
+            clusters='38',
+            lv='1',
+            opts='Co2L-3H',
+            sector_opts="[Co2L0p0-24H-T-H-B-I]"),
+            input=dict(
+                building_stock="data/retro/data_building_stock.csv",
+                tax_w="data/retro/electricity_taxes_eu.csv",
+                construction_index="data/retro/comparative_level_investment.csv",
+                average_surface="data/retro/average_surface_components.csv",
+                floor_area_missing="data/retro/floor_area_missing.csv",
+                clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
+                cost_germany="data/retro/retro_cost_germany.csv"),
+        output=dict(
+                retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
+                floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv")
+        )
+    with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
+        snakemake.config = yaml.load(f)

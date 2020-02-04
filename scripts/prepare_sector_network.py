@@ -1100,16 +1100,18 @@ def add_heat(network):
 
         retro_cost = pd.read_csv(snakemake.input.retro_cost_energy,
                                   index_col=[0,1], skipinitialspace=True, header=[0,1])
-        floor_area = pd.read_csv(snakemake.input.floor_area, index_col=[0])
+        floor_area = pd.read_csv(snakemake.input.floor_area, index_col=[0,1])
         
-        index = pd.MultiIndex.from_product([pop_layout.index, sectors])
+        index = pd.MultiIndex.from_product([pop_layout.index, sectors + ["tot"]])
         square_metres = pd.DataFrame(np.nan, index=index, columns=["m²"])
 
         # weighting for share of space heat demand
         w_space = {}   
         for sector in sectors:
-            w_space[sector] = heat_demand[sector+" space"]/(heat_demand[sector+" space"] + heat_demand[sector +" water"])
-        w_space["tot"] = (heat_demand["services space"] + heat_demand["residential space"])/heat_demand.groupby(level=[1], axis=1).sum()
+            w_space[sector] = heat_demand[sector+" space"]/(heat_demand[sector+" space"] + 
+                                                            heat_demand[sector +" water"])
+        w_space["tot"] = ((heat_demand["services space"] + heat_demand["residential space"]) / 
+                           heat_demand.groupby(level=[1], axis=1).sum())
         
         network.add("Carrier", "retrofitting")
 
@@ -1119,10 +1121,11 @@ def add_heat(network):
             space_heat_demand_node.columns = sectors
             ct = node[:2]
             if ct in floor_area.index.levels[0]:
-                square_metres.loc[ct] =  * floor_area.loc[ct, "value"] * 10**6
-
+                square_metres = (pop_layout.loc[node].fraction
+                                                    * floor_area.loc[ct, "value"] * 10**6)
                 for carrier in heat_types:
-                    if (node + " " + carrier) in list(network.loads_t.p_set.columns):
+                    name = node + " " + carrier + " heat"
+                    if (name in list(network.loads_t.p_set.columns)):
                         
                         if "urban" in carrier:
                             f = urban_fraction[node]
@@ -1130,41 +1133,38 @@ def add_heat(network):
                             f = 1 - urban_fraction[node]
                         
                         if "residential" in carrier:
-                            w_space_c = w_space["residential"][node]
-                            
+                            sec = "residential"                            
                         if "services" in carrier:
-                            w_space_c = w_space["services"][node]
-                        
+                            sec = "services"                        
                         else:
-                            w_space_c = w_space["tot"][node]
-                            
+                            sec = "tot"
+                          
+                        square_metres_c = (square_metres.loc[sec] * f)
                         # weighting instead of taking space heat demand to 
                         # allow simulatounsly exogenous and optimised retrofitting    
-                        space_heat_demand_c = network.loads_t.p_set[node + " " + carrier] * w_space_c
+                        space_heat_demand_c = network.loads_t.p_set[name] * w_space[sec][node]
                         space_peak_c = space_heat_demand_c.max()
                         if space_peak_c == 0:
                             continue
                         space_pu_c = (space_heat_demand_c/space_peak_c).to_frame(name=node)
                         
-                        square_metres_c = f * square_metres[dic[carrier]].iloc[0]
-                        dE, cost_c = {}, {}
-                        for i in retro_steps.keys():
-                            dE[i] = retro_steps[i].loc[ct, "dE " + dic[carrier]]
-                            cost_c[i] = retro_steps[i].loc[ct,"cost "+dic[carrier]] * tax_w.loc[ct].iloc[0]
+                        for strength in retro_cost.cost.columns:
+                            dE = retro_cost.loc[(ct, sec),("dE", strength)]
+                            cost_c = retro_cost.loc[(ct, sec),("cost", strength)]
                             network.madd('Generator',
                                          retro_nodes,
-                                         suffix=' retrofitting {} '.format(i) + carrier,
-                                         bus=node + " " + carrier,
-                                         strength=' retrofitting {} '.format(i),
+                                         suffix=' retrofitting ' + strength +" "  + carrier,
+                                         bus=node + " " + carrier + " heat",
+                                         strength=' retrofitting ' + strength,
                                          type = carrier, 
                                          carrier="retrofitting",
                                          p_nom_extendable=True,
-                                         p_nom_max=(1 - dE[i]) * space_peak_c,
+                                         p_nom_max=(1 - dE) * space_peak_c,
                                          p_max_pu=space_pu_c,
                                          p_min_pu=space_pu_c,
                                          country=ct,
-                                         capital_cost=cost_c[i] * square_metres_c / \
-                                         ((1-dE[i]) * space_peak_c)
+                                         capital_cost=cost_c * square_metres_c / \
+                                         ((1-dE) * space_peak_c)
                                          )
 
             else:
@@ -1571,7 +1571,8 @@ if __name__ == "__main__":
                 biomass_potentials='data/biomass_potentials.csv',
                 heat_profile="data/heat_load_profile_BDEW.csv",
                 costs="data/costs.csv",
-                retro_cost_energy = "data/retro",  
+                retro_cost_energy =  "resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
+                floor_area = "resources/floor_area_{network}_s{simpl}_{clusters}.csv",
                 retro_tax_w="data/eu_elec_taxes_weighting.csv",
                 traffic_data="data/emobility/",
                 clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",

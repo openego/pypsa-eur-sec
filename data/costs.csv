@@ -145,9 +145,11 @@ central air-sourced heat pump,2030,investment,700,EUR/kWth,Palzer thesis
 central air-sourced heat pump,2030,lifetime,20,years,Palzer thesis
 central air-sourced heat pump,2030,FOM,3.5,%/year,Palzer thesis
 central air-sourced heat pump,2030,efficiency,3,per unit,default for costs
-retrofitting I,2030,discount rate,0.04,per unit,Palzer thesis
-retrofitting I,2030,lifetime,50,years,Palzer thesis
-retrofitting I,2030,FOM,1,%/year,Palzer thesis
+retrofitting,2030,discount rate,0.04,per unit,Palzer thesis
+retrofitting Windows,2030,lifetime,30,years,"source: The potential for large-scale savings from insulating residential buildings in the EU Stefan Lechtenbaehmer & Andreas Schaering, source: p.37 https://www.umweltbundesamt.de/sites/default/files/medien/1410/publikationen/2019-10-29_texte_132-2019_energieaufwand-gebaeudekonzepte.pdf "
+retrofitting Floor,2030,lifetime,50,years,"source: The potential for large-scale savings from insulating residential buildings in the EU Stefan Lechtenbaehmer & Andreas Schaering, source: p.37 https://www.umweltbundesamt.de/sites/default/files/medien/1410/publikationen/2019-10-29_texte_132-2019_energieaufwand-gebaeudekonzepte.pdf "
+retrofitting Roof,2030,lifetime,50,years,"source: The potential for large-scale savings from insulating residential buildings in the EU Stefan Lechtenbaehmer & Andreas Schaering, source: p.37 https://www.umweltbundesamt.de/sites/default/files/medien/1410/publikationen/2019-10-29_texte_132-2019_energieaufwand-gebaeudekonzepte.pdf "
+retrofitting Walls,2030,lifetime,50,years,"source: The potential for large-scale savings from insulating residential buildings in the EU Stefan Lechtenbaehmer & Andreas Schaering, source: p.37 https://www.umweltbundesamt.de/sites/default/files/medien/1410/publikationen/2019-10-29_texte_132-2019_energieaufwand-gebaeudekonzepte.pdf "
 retrofitting I,2030,investment,50,EUR/m2/fraction reduction,Palzer thesis
 retrofitting II,2030,discount rate,0.04,per unit,Palzer thesis
 retrofitting II,2030,lifetime,50,years,Palzer thesis

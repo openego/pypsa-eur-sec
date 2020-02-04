@@ -178,7 +178,7 @@ if config['sector'].get('retrofitting', True):
             average_surface="data/retro/average_surface_components.csv",
             floor_area_missing="data/retro/floor_area_missing.csv",
             clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
-            costs="data/costs.csv"
+            cost_germany="data/retro/retro_cost_germany.csv"
         output:
             retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
             floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv"
@@ -195,10 +195,10 @@ rule prepare_sector_network:
         timezone_mappings='data/timezone_mappings.csv',
         heat_profile="data/heat_load_profile_BDEW.csv",
         costs="data/costs.csv",
-	    retro_cost_energy = "resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
+	retro_cost_energy = "resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
         floor_area = "resources/floor_area_{network}_s{simpl}_{clusters}.csv",
         clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
-	    traffic_data = "data/emobility/",
+	traffic_data = "data/emobility/",
         industrial_demand="resources/industrial_demand_{network}_s{simpl}_{clusters}.csv",
         heat_demand_urban="resources/heat_demand_urban_{network}_s{simpl}_{clusters}.nc",
         heat_demand_rural="resources/heat_demand_rural_{network}_s{simpl}_{clusters}.nc",
