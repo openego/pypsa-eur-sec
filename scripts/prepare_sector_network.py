@@ -1160,6 +1160,7 @@ def add_heat(network):
                                          carrier="retrofitting",
                                          p_nom_extendable=True,
                                          p_nom_max=(1 - dE) * space_peak_c,
+                                         dE = dE,
                                          p_max_pu=space_pu_c,
                                          p_min_pu=space_pu_c,
                                          country=ct,

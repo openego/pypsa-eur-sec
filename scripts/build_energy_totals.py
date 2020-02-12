@@ -115,7 +115,6 @@ def build_idees(year):
             continue
 
         #RESIDENTIAL
-
         filename = "{}/JRC-IDEES-2015_Residential_{}.xlsx".format(base_dir,rename.get(ct,ct))
         df = pd.read_excel(filename,"RES_hh_fec")
 
@@ -140,6 +139,10 @@ def build_idees(year):
 
         assert df.iloc[34,0] == "Energy consumption by fuel - Eurostat structure (ktoe)"
         totals.loc[ct,"total residential"] = df.loc[34,year]
+        
+        assert df.iloc[46,0] == "Derived heat"
+        assert df.iloc[50,0] == 'Thermal uses'
+        totals.loc[ct,"district heat share residential"] = df.loc[46,year]/df.loc[50,year]
 
         assert df.iloc[47,0] == "Electricity"
         totals.loc[ct,"electricity residential"] = df.loc[47,year]
@@ -174,8 +177,12 @@ def build_idees(year):
 
         assert df.iloc[50,0] == "Electricity"
         totals.loc[ct,"electricity services"] = df.loc[50,year]
-
-
+        
+        assert df.iloc[49,0] == "Derived heat"
+        assert df.iloc[53,0] == 'Thermal uses'
+        totals.loc[ct,"district heat share services"] = df.loc[49,year]/df.loc[53,year]
+        
+        
         # TRANSPORT
 
         filename = "{}/JRC-IDEES-2015_Transport_{}.xlsx".format(base_dir,rename.get(ct,ct))
@@ -265,15 +272,15 @@ def build_idees(year):
 
         assert df.iloc[85,0] == "Passenger cars"
         totals.loc[ct,"passenger cars"] = df.loc[85,year]
-
-    #convert ktoe to MWh
-    totals = totals*factor
-
-    totals["passenger cars"] = totals["passenger cars"]/factor
-
+    
+    no_convert = ['passenger cars', 'district heat share residential',
+                  'district heat share services']
+    #convert ktoe to TWh
+    totals[totals.columns.difference(no_convert)] *= factor
+    
     #convert to kWh per km
-    totals["passenger car efficiency"] = 10*totals["passenger car efficiency"]
-
+    totals["passenger car efficiency"] = 10*totals["passenger car efficiency"]        
+        
     return totals
 
 
@@ -337,7 +344,14 @@ def build_energy_totals():
                         (without_norway["{} {}".format("total",sector)]-without_norway["{} {}".format("electricity",sector)])).mean()
             clean_df.loc["NO","{} {} {}".format("total",sector,use)] = total_heating*fraction
             clean_df.loc["NO","{} {} {}".format("electricity",sector,use)] = total_heating*fraction*elec_fraction
-
+    
+    # Missing district heating share
+    dh_share = pd.read_csv("/home/ws/bw0928/Dokumente/data/district_heating/sharedheu.csv",
+                           index_col=0, usecols=[0,1])
+    missing = clean_df.index[clean_df["district heat share residential"].isnull()]
+    index = dh_share.index.intersection(missing)
+    clean_df.loc[index, clean_df.columns.str.contains("district heat share")] = (dh_share.loc[index]/100).values
+    
     #Missing aviation
     print("Aviation")
     clean_df.loc[missing_in_eurostat,"total domestic aviation"] = eurostat.loc[idx[missing_in_eurostat,:,:,"Domestic aviation"],"Total all products"].groupby(level=0).sum()
@@ -549,7 +563,7 @@ if __name__ == "__main__":
         snakemake.output['transport_name'] = "data/transport_data.csv"
 
         snakemake.input = Dict()
-        snakemake.input['nuts3_shapes'] = 'resources/nuts3_shapes.geojson'
+        snakemake.input['nuts3_shapes'] = '../../pypsa-eur/resources/nuts3_shapes.geojson'
 
     nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('index')
     population = nuts3['pop'].groupby(nuts3.country).sum()
@@ -571,3 +585,10 @@ if __name__ == "__main__":
     build_co2_totals()
 
     build_transport_data()
+ #%%   
+    
+    dh_plants = eurostat.xs('District Heating Plants', level=2, drop_level=False)
+#    dh_plants2 = b.xs('District heating plants', level=2, drop_level=False)
+    district_heating =  dh_plants.reset_index().set_index('level_0')["Total all products"]
+#    district_heating2 =  dh_plants2.reset_index().set_index('level_0')["Total all products"]
+    heat_demand_tot=energy_totals[["total residential", "total services"]].sum(axis=1)
