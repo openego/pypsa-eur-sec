@@ -2,7 +2,7 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: 'retro_hotmaps_data'
+run: 'real_district_share'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
@@ -47,8 +47,9 @@ biomass:
 
 
 sector:
-  'central' : True
+  'central' : True    # assume a fraction ('central_fraction') of central heating in urban area
   'central_fraction' : 0.6
+  'central_real' : True   # take current share fo central heating
   'dsm_restriction_value' : 0.75  #Set to 0 for no restriction on BEV DSM
   'dsm_restriction_time' : 7  #Time at which SOC of BEV has to be dsm_restriction_value
   'transport_heating_deadband_upper' : 20.

@@ -121,11 +121,15 @@ rule build_solar_thermal_profiles:
 
 rule build_energy_totals:
     input:
-        nuts3_shapes=pypsaeur('resources/nuts3_shapes.geojson')
+        nuts3_shapes=pypsaeur('resources/nuts3_shapes.geojson'),
+	    district_heat_share='data/district_heat_share.csv',
+        idee_dir='data/jrc-idees-2015',
+        eea_co2="data/eea/UNFCCC_v21.csv",
+        swiss="data/switzerland-sfoe/switzerland-new_format.csv"
     output:
         energy_name='data/energy_totals.csv',
-	co2_name='data/co2_totals.csv',
-	transport_name='data/transport_data.csv'
+    	co2_name='data/co2_totals.csv',
+    	transport_name='data/transport_data.csv'
     threads: 1
     resources: mem_mb=10000
     script: 'scripts/build_energy_totals.py'

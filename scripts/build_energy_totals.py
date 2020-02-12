@@ -92,7 +92,7 @@ def build_eurostat(year):
 
 def build_swiss(year):
 
-    fn = "data/switzerland-sfoe/switzerland-new_format.csv"
+    fn = snakemake.input.swiss
 
     #convert PJ/a to TWh/a
     return (pd.read_csv(fn,index_col=list(range(2)))/3.6).loc["CH",str(year)]
@@ -101,7 +101,7 @@ def build_swiss(year):
 
 
 def build_idees(year):
-    base_dir = "data/jrc-idees-2015"
+    base_dir = snakemake.input.idee_dir
 
     totals = pd.DataFrame()
 
@@ -142,7 +142,8 @@ def build_idees(year):
         
         assert df.iloc[46,0] == "Derived heat"
         assert df.iloc[50,0] == 'Thermal uses'
-        totals.loc[ct,"district heat share residential"] = df.loc[46,year]/df.loc[50,year]
+        totals.loc[ct,"Derived heat residential"] = df.loc[46,year]
+        totals.loc[ct,"Thermal uses residential"] = df.loc[50,year]
 
         assert df.iloc[47,0] == "Electricity"
         totals.loc[ct,"electricity residential"] = df.loc[47,year]
@@ -180,7 +181,8 @@ def build_idees(year):
         
         assert df.iloc[49,0] == "Derived heat"
         assert df.iloc[53,0] == 'Thermal uses'
-        totals.loc[ct,"district heat share services"] = df.loc[49,year]/df.loc[53,year]
+        totals.loc[ct,"Derived heat services"] = df.loc[49,year]
+        totals.loc[ct,"Thermal uses services"] = df.loc[53,year]
         
         
         # TRANSPORT
@@ -273,14 +275,14 @@ def build_idees(year):
         assert df.iloc[85,0] == "Passenger cars"
         totals.loc[ct,"passenger cars"] = df.loc[85,year]
     
-    no_convert = ['passenger cars', 'district heat share residential',
-                  'district heat share services']
+    no_convert = ['passenger cars']
     #convert ktoe to TWh
     totals[totals.columns.difference(no_convert)] *= factor
     
     #convert to kWh per km
-    totals["passenger car efficiency"] = 10*totals["passenger car efficiency"]        
-        
+    totals["passenger car efficiency"] = 10*totals["passenger car efficiency"] 
+    totals["district heat share"] = (totals[["Derived heat residential", "Derived heat services"]].sum(axis=1) /
+                                     totals[["Thermal uses residential", "Thermal uses services"]].sum(axis=1))
     return totals
 
 
@@ -346,11 +348,11 @@ def build_energy_totals():
             clean_df.loc["NO","{} {} {}".format("electricity",sector,use)] = total_heating*fraction*elec_fraction
     
     # Missing district heating share
-    dh_share = pd.read_csv("/home/ws/bw0928/Dokumente/data/district_heating/sharedheu.csv",
+    dh_share = pd.read_csv(snakemake.input.district_heat_share,
                            index_col=0, usecols=[0,1])
-    missing = clean_df.index[clean_df["district heat share residential"].isnull()]
+    missing = clean_df.index[clean_df["district heat share"].isnull()]
     index = dh_share.index.intersection(missing)
-    clean_df.loc[index, clean_df.columns.str.contains("district heat share")] = (dh_share.loc[index]/100).values
+    clean_df.loc[index, "district heat share"] = (dh_share.loc[index]/100).iloc[:,0]
     
     #Missing aviation
     print("Aviation")
@@ -411,7 +413,7 @@ def build_eea_co2():
 
     #https://www.eea.europa.eu/data-and-maps/data/national-emissions-reported-to-the-unfccc-and-to-the-eu-greenhouse-gas-monitoring-mechanism-14
     #downloaded 190222 (modified by EEA last on 181130)
-    fn = "data/eea/UNFCCC_v21.csv"
+    fn = snakemake.input.eea_co2
     df = pd.read_csv(fn, encoding="latin-1")
     df.loc[df["Year"] == "1985-1987","Year"] = 1986
     df["Year"] = df["Year"].astype(int)
@@ -563,7 +565,11 @@ if __name__ == "__main__":
         snakemake.output['transport_name'] = "data/transport_data.csv"
 
         snakemake.input = Dict()
-        snakemake.input['nuts3_shapes'] = '../../pypsa-eur/resources/nuts3_shapes.geojson'
+        snakemake.input['nuts3_shapes'] = '../pypsa-eur/resources/nuts3_shapes.geojson'
+        snakemake.input['district_heat_share'] = 'data/district_heat_share.csv'
+        snakemake.input['idee_dir'] = 'data/jrc-idees-2015'
+        snakemake.input['eea_co2'] = "data/eea/UNFCCC_v21.csv"
+        snakemake.input['swiss'] = "data/switzerland-sfoe/switzerland-new_format.csv"
 
     nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('index')
     population = nuts3['pop'].groupby(nuts3.country).sum()
@@ -585,10 +591,4 @@ if __name__ == "__main__":
     build_co2_totals()
 
     build_transport_data()
- #%%   
     
-    dh_plants = eurostat.xs('District Heating Plants', level=2, drop_level=False)
-#    dh_plants2 = b.xs('District heating plants', level=2, drop_level=False)
-    district_heating =  dh_plants.reset_index().set_index('level_0')["Total all products"]
-#    district_heating2 =  dh_plants2.reset_index().set_index('level_0')["Total all products"]
-    heat_demand_tot=energy_totals[["total residential", "total services"]].sum(axis=1)

@@ -359,8 +359,11 @@ def prepare_data(network):
 
     nodal_energy_totals = energy_totals.loc[pop_layout.ct].fillna(0.)
     nodal_energy_totals.index = pop_layout.index
+    # district heat share not weighted by population
+    dist_heat_share = round(nodal_energy_totals["district heat share"], ndigits=2)
     nodal_energy_totals = nodal_energy_totals.multiply(
-        pop_layout.fraction, axis=0)
+                                              pop_layout.fraction, axis=0)
+   
 
     # copy forward the daily average heat demand into each hour, so it can be
     # multipled by the intraday profile
@@ -511,7 +514,7 @@ def prepare_data(network):
     co2_totals = 1e6 * \
         pd.read_csv(snakemake.input.co2_totals_name, index_col=0)
 
-    return nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, solar_thermal, transport, avail_profile, dsm_profile, co2_totals, nodal_transport_data
+    return nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, solar_thermal, transport, avail_profile, dsm_profile, co2_totals, nodal_transport_data, dist_heat_share
 
 
 def prepare_costs():
@@ -854,9 +857,15 @@ def add_heat(network):
     for sector in sectors:
         nodes[sector + " rural"] = pop_layout.index
 
-        if options["central"]:
+        if options["central"] and not options["central_real"]:
             urban_decentral_ct = pd.Index(["ES", "GR", "PT", "IT", "BG"])
             nodes[sector + " urban decentral"] = pop_layout.index[pop_layout.ct.isin(urban_decentral_ct)]
+            central_fraction = options['central_fraction']
+            urban_fraction = central_fraction * \
+                             pop_layout["urban"] / (pop_layout[["urban", "rural"]].sum(axis=1))
+        if options["central_real"]:
+            nodes[sector + " urban decentral"] = dist_heat_share[(dist_heat_share == 0)].index
+            urban_fraction = dist_heat_share
         else:
             nodes[sector + " urban decentral"] = pop_layout.index
 
@@ -865,9 +874,6 @@ def add_heat(network):
 
     # NB: must add costs of central heating afterwards (EUR 400 / kWpeak, 50a,
     # 1% FOM from Fraunhofer ISE)
-
-    urban_fraction = options['central_fraction'] * \
-        pop_layout["urban"] / (pop_layout[["urban", "rural"]].sum(axis=1))
 
     if options["retrofitting_exogenous"]:
         print("natural renovation rate of ", options["retro_rate"] * 100,
@@ -883,11 +889,11 @@ def add_heat(network):
 
         name_type = "central" if name == "urban central" else "decentral"
 
-        network.add("Carrier", name + " heat")
+#        network.add("Carrier", name + " heat")
 
-        network.madd("Bus",
-                     nodes[name] + " " + name + " heat",
-                     carrier=name + " heat")
+#        network.madd("Bus",
+#                     nodes[name] + " " + name + " heat",
+#                     carrier=name + " heat")
 
         #  Add heat load
         for sector in sectors:
@@ -1643,7 +1649,7 @@ if __name__ == "__main__":
             print(o, limit)
             options['space_heating_fraction'] = limit
 
-    nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, solar_thermal, transport, avail_profile, dsm_profile, co2_totals, nodal_transport_data = prepare_data(
+    nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, solar_thermal, transport, avail_profile, dsm_profile, co2_totals, nodal_transport_data, dist_heat_share = prepare_data(
         n)
 
     if "nodistrict" in opts:
