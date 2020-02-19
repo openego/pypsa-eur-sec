@@ -72,7 +72,7 @@ sector:
   'years' : 30  # number of years from today to year of optimisation
   'retro_rate' : 0.03  # rate of yearly renovation
   'dE' : 0.4   # assumed energy reduction for a renovated building
-  'retro_opt' : "once"   # clycle of retrofitting
+  'retro_opt' : "once"   # cycle of retrofitting ["once", "all", "retro_steps", "EU-target"] [("once"-> buildings are renovated one time)
   'tes' : True
   'tes_tau' : 3.
   'boilers' : True
@@ -82,10 +82,11 @@ sector:
   'marginal_cost_storage' : 0. #1e-4
   'methanation' : True
   'helmeth' : True
-  'dac' : True
+  'dac' : False
   'co2_vent' : True
   'SMR' : True
-  'ccs_fraction' : 0.9
+  'ccs' : False
+  'ccs_fraction' : 0.0 # 0.9
   'hydrogen_underground_storage' : True
   'use_fischer_tropsch_waste_heat' : True
   'use_fuel_cell_waste_heat' : True

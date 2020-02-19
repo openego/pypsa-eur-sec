@@ -854,23 +854,26 @@ def add_heat(network):
     # urban are areas with high heating density
     # urban can be split into district heating (central) and individual
     # heating (decentral)
+    # for central nodes, residential and services are aggregated
+    urban_fraction = pop_layout["urban"] / (pop_layout[["urban", "rural"]].sum(axis=1))
+    
     for sector in sectors:
         nodes[sector + " rural"] = pop_layout.index
+        nodes[sector + " urban decentral"] = pop_layout.index
 
-        if options["central"] and not options["central_real"]:
-            urban_decentral_ct = pd.Index(["ES", "GR", "PT", "IT", "BG"])
-            nodes[sector + " urban decentral"] = pop_layout.index[pop_layout.ct.isin(urban_decentral_ct)]
-            central_fraction = options['central_fraction']
-            urban_fraction = central_fraction * \
-                             pop_layout["urban"] / (pop_layout[["urban", "rural"]].sum(axis=1))
-        if options["central_real"]:
-            nodes[sector + " urban decentral"] = dist_heat_share[(dist_heat_share == 0)].index
-            urban_fraction = dist_heat_share
-        else:
-            nodes[sector + " urban decentral"] = pop_layout.index
-
-    # for central nodes, residential and services are aggregated
-    nodes["urban central"] = pop_layout.index ^ nodes["residential urban decentral"]
+    if options["central"] and not options["central_real"]:
+        urban_decentral_ct = pd.Index(["ES", "GR", "PT", "IT", "BG"])
+        central_fraction = options['central_fraction']
+        urban_ct = pd.DataFrame(urban_fraction)
+        urban_ct["country"] =  urban_ct.index.str[:2]
+        urban_ct[urban_ct.country.isin(urban_decentral_ct)] = 0
+        dist_fraction = central_fraction * urban_ct.iloc[:,0]
+        nodes["urban central"] = dist_fraction.index
+        
+    if options["central_real"]:  # take current district heating share
+        dist_fraction = dist_heat_share*pop_layout["urban_ct_fraction"] / pop_layout["fraction"] 
+        nodes["urban central"] = dist_fraction.index
+        
 
     # NB: must add costs of central heating afterwards (EUR 400 / kWpeak, 50a,
     # 1% FOM from Fraunhofer ISE)
@@ -881,7 +884,9 @@ def add_heat(network):
         for sector in sectors:
             heat_demand[sector + " space"] = heat_demand[sector + " space"].apply(lambda x: space_heat_retro(
                 x, options["years"], options["retro_rate"], options["dE"], option=options["retro_opt"]))
-
+    
+    # if district heating share larger than urban fraction -> set urban fraction to district heating share
+    urban_fraction = pd.concat([urban_fraction,dist_fraction], axis=1).max(axis=1)
     heat_types = ["residential rural", "services rural", 
                  "residential urban decentral", "services urban decentral",
                  "urban central"]
@@ -889,29 +894,31 @@ def add_heat(network):
 
         name_type = "central" if name == "urban central" else "decentral"
 
-#        network.add("Carrier", name + " heat")
+        network.add("Carrier", name + " heat")
 
-#        network.madd("Bus",
-#                     nodes[name] + " " + name + " heat",
-#                     carrier=name + " heat")
+        network.madd("Bus",
+                     nodes[name] + " " + name + " heat",
+                     carrier=name + " heat")
 
         #  Add heat load
         for sector in sectors:
             if "rural" in name:
                 factor = 1 - urban_fraction[nodes[name]]
-            elif "urban" in name:
-                factor = urban_fraction[nodes[name]]
+            elif "urban central" in name:
+                factor = dist_fraction[nodes[name]]
+            elif "urban decentral" in name:
+                factor = urban_fraction[nodes[name]] - dist_fraction[nodes[name]]
             else:
                 factor = None
+                
             if sector in name:
                 heat_load = heat_demand[[sector + " water",
                                          sector + " space"]].groupby(level=1,
                                                                      axis=1).sum()[nodes[name]].multiply(factor)
-
         if name == "urban central":
             heat_load = heat_demand.groupby(level=1, axis=1).sum()[nodes[name]].multiply(
-                urban_fraction[nodes[name]] * (1 + options['district_heating_loss']))
-
+                                    factor * (1 + options['district_heating_loss']))
+            
         network.madd("Load",
                      nodes[name],
                      suffix=" " + name + " heat",
@@ -1627,8 +1634,10 @@ if __name__ == "__main__":
     pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
     pop_layout["ct"] = pop_layout.index.str[:2]
     ct_total = pop_layout.total.groupby(pop_layout["ct"]).sum()
+    ct_urban = pop_layout.urban.groupby(pop_layout["ct"]).sum()
     pop_layout["ct_total"] = pop_layout["ct"].map(ct_total.get)
     pop_layout["fraction"] = pop_layout["total"] / pop_layout["ct_total"]
+    pop_layout["urban_ct_fraction"] = pop_layout["urban"] / pop_layout["ct"].map(ct_urban.get)
 
     costs = prepare_costs()
 
@@ -1704,5 +1713,10 @@ if __name__ == "__main__":
                 limit = o[o.find(tech) + len(tech):]
                 limit = float(limit.replace("p", ".").replace("m", "-"))
                 restrict_technology_potential(n, tech, limit)
+    
+    if not options["ccs"]:
+        print("no CCS")
+        n.links = n.links[~n.links.carrier.str.contains("CCS")]
+        
 # %%
     n.export_to_netcdf(snakemake.output[0])

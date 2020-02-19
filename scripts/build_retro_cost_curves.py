@@ -35,7 +35,7 @@ tax_weighting = False   # weight costs depending on taxes in countries
 construction_index = False   # weight costs depending on costruction_index
 plot = False
 
-l_strength = ["0.05", "0.15"]  # additional insulation thickness
+l_strength = ["0.02", "0.035"]  # additional insulation thickness
 # strenght of relative retrofitting depending on the component
 l_weight = pd.DataFrame({"weight": [4, 2, 2, 0.5]},
                          index=["Roof", "Walls", "Floor", "Windows"])
@@ -235,7 +235,7 @@ if plot:
 if 'snakemake' not in globals():
     import yaml
     from vresutils.snakemake import MockSnakemake
-    os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
+    os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
     snakemake = MockSnakemake(
         wildcards=dict(
             network='elec',

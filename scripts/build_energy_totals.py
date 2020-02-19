@@ -85,6 +85,16 @@ def build_eurostat(year):
 
     #sorted_index necessary for slicing
     df = pd.concat({country_to_code[df.columns[0]] : df for ct,df in dfs.items()},sort=True).sort_index()
+    
+    # test
+#    codes = ["15_107064", "15_107072", "15_107076", "15_107080", "15_107086", "14_1070681", # CHP
+#             "15_107066", "15_107074", "15_107078", "15_107082", "15_107084", "15_107088", "14_1070701", # autproducer
+#             "15_107060", "15_107062",   # CHP nuclear
+#             "B_101109"  # district heating plant 
+#             ]
+#    dist_heat = df.loc[[code in codes for code in df["2011"]],:]["Total all products"]
+#    dist_heat_ct = dist_heat.groupby(level=0).sum()
+#    a = dist_heat_ct*factor/clean_df[["Thermal uses residential", "Thermal uses services"]].sum(axis=1)
 
     #drop non-numeric columns; convert ktoe/a to TWh/a
     return df.drop(df.columns[df.dtypes != float],axis=1)*11.63/1e3
