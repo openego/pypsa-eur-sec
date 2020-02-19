@@ -552,6 +552,42 @@ def prepare_costs():
         v["investment"] *
         Nyears for i,
         v in costs.iterrows()]
+        
+    costs_old = pd.read_csv("/home/ws/bw0928/Dokumente/pypsa-eur-sec/data/costs_old.csv"
+                            ,index_col=list(range(3))).sort_index()
+    #correct units to MW and EUR
+    costs_old.loc[costs_old.unit.str.contains("/kW"),"value"]*=1e3
+    costs_old.loc[costs_old.unit.str.contains("USD"),"value"]*=snakemake.config['costs']['USD2013_to_EUR2013']
+
+    costs_old = costs_old.loc[idx[:,cost_year,:],"value"].unstack(level=2).groupby(level="technology").sum(min_count=1)
+    costs_old = costs_old.fillna({"CO2 intensity" : 0,
+                          "FOM" : 0,
+                          "VOM" : 0,
+                          "discount rate" : snakemake.config['costs']['discountrate'],
+                          "efficiency" : 1,
+                          "fuel" : 0,
+                          "investment" : 0,
+                          "lifetime" : 25
+    })
+
+    costs_old["fixed"] = [
+            (annuity
+             (v["lifetime"], v["discount rate"]) + v["FOM"] / 100.) * v["investment"] * Nyears
+             for i,v in costs_old.iterrows()]
+    
+    missing = costs_old.index.difference(costs.index)
+    missing = missing[~missing.str.contains("retrofitting")]  # retrofitting costs are calculated
+    missing = missing[~missing.str.contains("hydrogen")]      # in new costs other name for hydrogen storage
+    
+    if len(missing):
+        print("************************************************************")
+        print("warning, in new cost assumptions the following components: ")
+        for i in range(len(missing)): print("    ", i+1, missing[i])
+        print(" are missing and the old cost assumptions are assumed.")
+        print("************************************************************")
+    
+    costs = pd.concat([costs, costs_old.loc[missing]])
+    
     return costs
 
 
@@ -647,7 +683,7 @@ def add_storage(network):
                                .reset_index().set_index(cavern_nodes.index))
         h2_pot = h2_pot.TWh*cavern_nodes.fraction
         
-        h2_capital_cost = costs.at["hydrogen underground storage", "fixed"]
+        h2_capital_cost = costs.at["hydrogen storage underground", "fixed"]
         
         network.madd("Store",
              cavern_nodes.index + " H2 Store",
@@ -660,7 +696,7 @@ def add_storage(network):
              capital_cost=h2_capital_cost)
 
     # hydrogen stored not underground
-    h2_capital_cost = costs.at["hydrogen storage", "fixed"]
+    h2_capital_cost = costs.at["hydrogen storage tank", "fixed"]
     nodes_upper = nodes^cavern_nodes.index
     
     network.madd("Store",
