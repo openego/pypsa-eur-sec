@@ -518,22 +518,21 @@ def prepare_data(network):
 
 
 def prepare_costs():
-
+    
+    cost_year = snakemake.config['costs']['year']
     # set all asset costs and other parameters
     costs = pd.read_csv(
-        snakemake.input.costs,
-        index_col=list(
-            range(3))).sort_index()
+        snakemake.input.costs + "costs_{}.csv".format(cost_year),
+        index_col=list(range(2))).sort_index()
 
     # correct units to MW and EUR
     costs.loc[costs.unit.str.contains("/kW"), "value"] *= 1e3
     costs.loc[costs.unit.str.contains(
         "USD"), "value"] *= snakemake.config['costs']['USD2013_to_EUR2013']
 
-    cost_year = snakemake.config['costs']['year']
 
-    costs = costs.loc[idx[:, cost_year, :], "value"].unstack(
-        level=2).groupby(level="technology").sum(min_count=1)
+
+    costs = costs["value"].unstack(level=1).groupby(level="technology").sum(min_count=1)
     costs = costs.fillna({"CO2 intensity": 0,
                           "FOM": 0,
                           "VOM": 0,
@@ -634,17 +633,42 @@ def add_storage(network):
                  efficiency=costs.at["fuel cell", "efficiency"],
                  capital_cost=(costs.at["fuel cell", "fixed"] *
                                costs.at["fuel cell", "efficiency"]))  # NB: fixed cost is per MWel
-
+    
+    cavern_nodes = pd.DataFrame()
     if options['hydrogen_underground_storage']:
+        
+        h2_salt_cavern_potential = pd.read_csv(snakemake.input.h2_cavern,
+                                               index_col=0,
+                                               names=["potential", "TWh"])
+        h2_cavern_ct = h2_salt_cavern_potential[h2_salt_cavern_potential.potential==True]
+        cavern_nodes = pop_layout[pop_layout.ct.isin(h2_cavern_ct.index)]
+        # assumptions: weight storage potential in a country by population
+        h2_pot =  (h2_cavern_ct.loc[cavern_nodes.ct, "TWh"].astype(float)
+                               .reset_index().set_index(cavern_nodes.index))
+        h2_pot = h2_pot.TWh*cavern_nodes.fraction
+        
         h2_capital_cost = costs.at["hydrogen underground storage", "fixed"]
-    else:
-        h2_capital_cost = costs.at["hydrogen storage", "fixed"]
+        
+        network.madd("Store",
+             cavern_nodes.index + " H2 Store",
+             bus=cavern_nodes.index + " H2",
+             e_nom_extendable=True,
+             e_nom_max=h2_pot,
+             type="underground",
+             e_cyclic=True,
+             carrier="H2 Store",
+             capital_cost=h2_capital_cost)
 
+    # hydrogen stored not underground
+    h2_capital_cost = costs.at["hydrogen storage", "fixed"]
+    nodes_upper = nodes^cavern_nodes.index
+    
     network.madd("Store",
-                 nodes + " H2 Store",
-                 bus=nodes + " H2",
+                 nodes_upper + " H2 Store",
+                 bus=nodes_upper + " H2",
                  e_nom_extendable=True,
                  e_cyclic=True,
+                 type="upperground",
                  carrier="H2 Store",
                  capital_cost=h2_capital_cost)
 
@@ -1584,10 +1608,11 @@ if __name__ == "__main__":
                 transport_name='data/transport_data.csv',
                 biomass_potentials='data/biomass_potentials.csv',
                 heat_profile="data/heat_load_profile_BDEW.csv",
-                costs="data/costs.csv",
+                costs="data/costs/",
                 retro_cost_energy =  "resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
                 floor_area = "resources/floor_area_{network}_s{simpl}_{clusters}.csv",
                 retro_tax_w="data/eu_elec_taxes_weighting.csv",
+                h2_cavern= "data/hydrogen_salt_cavern_potentials.csv",
                 traffic_data="data/emobility/",
                 clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
                 industrial_demand="resources/industrial_demand_{network}_s{simpl}_{clusters}.csv",
