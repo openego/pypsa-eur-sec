@@ -40,7 +40,7 @@ override_component_attrs["StorageUnit"].loc["p_dispatch"] = ["series","MW",0.,"S
 override_component_attrs["StorageUnit"].loc["p_store"] = ["series","MW",0.,"Storage charging.","Output"]
 
 
-
+#%%
 
 def assign_carriers(n):
     if "carrier" not in n.lines:
@@ -250,7 +250,7 @@ def calculate_energy(n,label,energy):
             c_energies = pd.Series(0.,c.df.carrier.unique())
             for port in [col[3:] for col in c.df.columns if col[:3] == "bus"]:
                 c_energies -= c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum().groupby(c.df.carrier).sum()
-
+                test[c.name] = c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum()
         c_energies = pd.concat([c_energies], keys=[c.list_name])
 
         energy = energy.reindex(c_energies.index|energy.index)
@@ -538,7 +538,7 @@ def make_summaries(networks_dict):
 
     for label, filename in iteritems(networks_dict):
         print(label, filename)
-
+        
         n = pypsa.Network(filename,
                           override_component_attrs=override_component_attrs)
 
@@ -554,7 +554,7 @@ def make_summaries(networks_dict):
 
 
 def to_csv(df):
-
+    
     for key in df:
         df[key].to_csv(snakemake.output[key])
 
@@ -562,16 +562,28 @@ def to_csv(df):
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
+        os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
+        name = "elec_s_38_lv1.0__Co2L0-3H-T-H-B_retro_distmax_dac"
         from vresutils import Dict
         import yaml
         snakemake = Dict()
-        with open('config.yaml') as f:
+        with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
             snakemake.config = yaml.load(f)
 
         #overwrite some options
-        snakemake.config["run"] = "190418-test-rebase"
-        snakemake.config["scenario"]["lv"] = [1.0, 1.25]
-        snakemake.config["scenario"]["sector_opts"] = ["Co2L0-3H-T-H-B-I","Co2L0-3H-T-H-B-I-onwind0","Co2L0p1-3H-T-H-B-I","Co2L0-3H-T-H-B-I-onwind0-solar2-offwind2"]
+        snakemake.config['results_dir'] = "results/"
+        snakemake.config["run"] = "real_district_share"
+        snakemake.config["scenario"]["lv"] = [1.0]
+        snakemake.config["scenario"]["sector_opts"] = ["Co2L0-3H-T-H-B_retro_dist_dac_nwtanks",
+                                                       "Co2L0-3H-T-H-B_retro_distmax_dac",
+                                                       "Co2L0-3H-T-H-B_retro_distmax_dac_nwtanks",
+                                                       "Co2L0-3H-T-H-B_retro_dist_dac",
+                                                       "Co2L0-3H-T-H-B_retro_dist_nodac",
+                                                       "Co2L0-3H-T-H-B_noretro_dist_dac_nowtanks",
+                                                       "Co2L0-3H-T-H-B_noretro_distmax_dac",
+                                                       "Co2L0-3H-T-H-B_noretro_distmax_dac_nowtanks",
+                                                       "Co2L0-3H-T-H-B_noretro_dist_dac",
+                                                       "Co2L0-3H-T-H-B_noretro_dist_nodac"]
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'
         snakemake.output = Dict()
@@ -579,7 +591,7 @@ if __name__ == "__main__":
             snakemake.output[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=snakemake.config['run'],item=item)
 
     networks_dict = {(cluster,lv,opt+sector_opt) :
-                     snakemake.config['results_dir'] + snakemake.config['run'] + '/postnetworks/elec_s_{cluster}_lv{lv}_{opt}_{sector_opt}.nc'\
+                     snakemake.config['results_dir'] + snakemake.config['run'] + '/postnetworks/elec_s_38_lv1.0__{}.nc'.format(sector_opt)\
                      .format(cluster=cluster,
                              opt=opt,
                              lv=lv,

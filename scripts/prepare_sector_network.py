@@ -95,6 +95,22 @@ def remove_elec_base_techs(n):
         print("removing {} with carrier {}".format(components, to_remove))
         df.drop(df.index[df.carrier.isin(to_remove)], inplace=True)
 
+def update_elec_costs(n):
+    """update the old cost assumptions from pypsa-eur to the new ones,
+    this function keeps the old DC line costs"""
+    
+    print("updating old pypsa-eur cost assumptions")
+    
+    for c in n.iterate_components(n.one_port_components):
+        if c.name !="Load":
+            print(c.name)
+            cap_dict = costs["fixed"].to_dict()
+            vom_dict = costs["VOM"].to_dict()
+            eff_dict = costs["efficiency"].to_dict()
+            c.df["capital_cost"] = c.df["carrier"].map(cap_dict).combine_first(c.df["capital_cost"])
+            c.df["marginal_cost"] = c.df["carrier"].map(vom_dict).combine_first(c.df["marginal_cost"])
+            if c.name=="Generator":
+                c.df["efficiency"] = c.df["carrier"].map(eff_dict).combine_first(c.df["efficiency"])
 
 def add_co2_tracking(n):
 
@@ -122,7 +138,7 @@ def add_co2_tracking(n):
     # TODO move maximum somewhere more transparent
     n.madd("Store", ["co2 stored"],
            e_nom_extendable=True,
-           e_nom_max=2e8,
+           e_nom_max=1e6,  # 2e8
            capital_cost=20.,
            carrier="co2 stored",
            bus="co2 stored")
@@ -143,7 +159,7 @@ def add_co2_tracking(n):
                bus0="co2 atmosphere",
                bus1="co2 stored",
                carrier="DAC",
-               marginal_cost=75.,
+               marginal_cost=100.,
                efficiency=1.,
                p_nom_extendable=True)
 
@@ -586,8 +602,15 @@ def prepare_costs():
         print(" are missing and the old cost assumptions are assumed.")
         print("************************************************************")
     
-    costs = pd.concat([costs, costs_old.loc[missing]])
+    costs = pd.concat([costs, costs_old.loc[missing]], sort=False)
     
+    for col in costs.columns:
+        costs[col].fillna(costs_old[col], inplace=True)
+    
+    if options["costs_old"]:
+        print("old costs are assumed")
+        costs = costs_old  
+
     return costs
 
 
@@ -689,8 +712,8 @@ def add_storage(network):
              cavern_nodes.index + " H2 Store",
              bus=cavern_nodes.index + " H2",
              e_nom_extendable=True,
-             e_nom_max=h2_pot,
-             type="underground",
+#             e_nom_max=h2_pot.values,
+#             type="underground",
              e_cyclic=True,
              carrier="H2 Store",
              capital_cost=h2_capital_cost)
@@ -704,7 +727,7 @@ def add_storage(network):
                  bus=nodes_upper + " H2",
                  e_nom_extendable=True,
                  e_cyclic=True,
-                 type="upperground",
+#                 type="upperground",
                  carrier="H2 Store",
                  capital_cost=h2_capital_cost)
 
@@ -1705,6 +1728,9 @@ if __name__ == "__main__":
     remove_elec_base_techs(n)
 
     n.loads["carrier"] = "electricity"
+    
+    if not options["costs_old"]:
+        update_elec_costs(n)   # update old pypsa-eur costs with new costs
 
     add_co2_tracking(n)
 
@@ -1778,6 +1804,9 @@ if __name__ == "__main__":
     if not options["ccs"]:
         print("no CCS")
         n.links = n.links[~n.links.carrier.str.contains("CCS")]
-        
+    
+    if not options["fossil_gas"]:
+        print("no EU fossil gas")
+        n.generators = n.generators[n.generators.index!="EU fossil gas"]
 # %%
     n.export_to_netcdf(snakemake.output[0])

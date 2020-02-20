@@ -83,6 +83,8 @@ sector:
   'methanation' : True
   'helmeth' : True
   'dac' : False
+  'fossil_gas': False
+  'costs_old' : False
   'co2_vent' : True
   'SMR' : True
   'ccs' : False

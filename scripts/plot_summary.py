@@ -161,7 +161,7 @@ def plot_energy():
 
     ax.grid(axis="y")
 
-    ax.legend(handles,labels,ncol=4,loc="upper left")
+    ax.legend(handles,labels,ncol=2,bbox_to_anchor=(1,1))
 
 
     fig.tight_layout()
