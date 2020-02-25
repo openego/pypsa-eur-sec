@@ -97,7 +97,7 @@ def plot_costs():
     handles.reverse()
     labels.reverse()
 
-    ax.set_ylim([0,snakemake.config['plotting']['costs_max']])
+#    ax.set_ylim([0,snakemake.config['plotting']['costs_max']])
 
     ax.set_ylabel("System Cost [EUR billion per year]")
 

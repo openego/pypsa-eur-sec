@@ -97,20 +97,26 @@ def remove_elec_base_techs(n):
 
 def update_elec_costs(n):
     """update the old cost assumptions from pypsa-eur to the new ones,
-    this function keeps the old DC line costs"""
+    this function keeps the old DC line costs and the old wind costs"""
     
-    print("updating old pypsa-eur cost assumptions")
+    print("updating old pypsa-eur cost assumptions (except wind)")
     
     for c in n.iterate_components(n.one_port_components):
         if c.name !="Load":
             print(c.name)
-            cap_dict = costs["fixed"].to_dict()
-            vom_dict = costs["VOM"].to_dict()
-            eff_dict = costs["efficiency"].to_dict()
+            cost_to_replace = costs.loc[~costs.index.str.contains("wind")]
+            cap_dict = cost_to_replace["fixed"].to_dict()
+            vom_dict = (cost_to_replace["VOM"] + cost_to_replace["fuel"]/cost_to_replace["efficiency"]).to_dict()
+            eff_dict = cost_to_replace["efficiency"].to_dict()
             c.df["capital_cost"] = c.df["carrier"].map(cap_dict).combine_first(c.df["capital_cost"])
             c.df["marginal_cost"] = c.df["carrier"].map(vom_dict).combine_first(c.df["marginal_cost"])
             if c.name=="Generator":
                 c.df["efficiency"] = c.df["carrier"].map(eff_dict).combine_first(c.df["efficiency"])
+    # add the pypsa-eur cost assumptions for wind
+    cap = (n.generators.capital_cost[n.generators.carrier.str.contains("wind")]
+           .groupby(n.generators.carrier).mean())
+    costs = pd.concat([costs,cap], axis=1, sort=False)
+
 
 def add_co2_tracking(n):
 
@@ -568,8 +574,10 @@ def prepare_costs():
         v["investment"] *
         Nyears for i,
         v in costs.iterrows()]
-        
-    costs_old = pd.read_csv("/home/ws/bw0928/Dokumente/pypsa-eur-sec/data/costs_old.csv"
+    
+    # assuming for solar 50% utility and 50% rooftop
+    costs.loc["solar"] = costs.loc["solar-rooftop"] * 0.5 + costs.loc["solar-utility"] * 0.5
+    costs_old = pd.read_csv(snakemake.input.costs_old
                             ,index_col=list(range(3))).sort_index()
     #correct units to MW and EUR
     costs_old.loc[costs_old.unit.str.contains("/kW"),"value"]*=1e3
@@ -591,9 +599,11 @@ def prepare_costs():
              (v["lifetime"], v["discount rate"]) + v["FOM"] / 100.) * v["investment"] * Nyears
              for i,v in costs_old.iterrows()]
     
+    costs_old.rename({'hydrogen storage':"hydrogen storage tank",
+                  "hydrogen underground storage" : "hydrogen storage underground"}
+                 , axis=0, inplace=True)
     missing = costs_old.index.difference(costs.index)
     missing = missing[~missing.str.contains("retrofitting")]  # retrofitting costs are calculated
-    missing = missing[~missing.str.contains("hydrogen")]      # in new costs other name for hydrogen storage
     
     if len(missing):
         print("************************************************************")
@@ -611,6 +621,14 @@ def prepare_costs():
         print("old costs are assumed")
         costs = costs_old  
 
+    
+    if options["h2_costs_old"]:
+        h2_costs = ['electrolysis', 'fuel cell', 'hydrogen storage tank',
+                    'hydrogen storage underground']
+        print("old costs assumed for ", *h2_costs)
+        print("------------------------------------------")
+        costs = pd.concat([costs.loc[~costs.index.isin(h2_costs)], costs_old.loc[h2_costs]], sort=False)
+        
     return costs
 
 
@@ -1632,9 +1650,9 @@ def remove_h2_network(n):
     n.stores.drop(["EU H2 Store"], inplace=True)
 
     if options['hydrogen_underground_storage']:
-        h2_capital_cost = costs.at["hydrogen underground storage", "fixed"]
+        h2_capital_cost = costs.at["hydrogen storage underground", "fixed"]
     else:
-        h2_capital_cost = costs.at["hydrogen storage", "fixed"]
+        h2_capital_cost = costs.at["hydrogen storage tank", "fixed"]
 
     # put back nodal H2 storage
     n.madd("Store",
@@ -1668,6 +1686,7 @@ if __name__ == "__main__":
                 biomass_potentials='data/biomass_potentials.csv',
                 heat_profile="data/heat_load_profile_BDEW.csv",
                 costs="data/costs/",
+                costs_old="data/costs_old.csv",
                 retro_cost_energy =  "resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
                 floor_area = "resources/floor_area_{network}_s{simpl}_{clusters}.csv",
                 retro_tax_w="data/eu_elec_taxes_weighting.csv",
@@ -1696,7 +1715,7 @@ if __name__ == "__main__":
                 timezone_mappings='data/timezone_mappings.csv'),
             output=['networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc'])
         with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
-            snakemake.config = yaml.load(f)
+            snakemake.config = yaml.safe_load(f)
 
     logging.basicConfig(level=snakemake.config['logging_level'])
 
@@ -1732,6 +1751,9 @@ if __name__ == "__main__":
     if not options["costs_old"]:
         update_elec_costs(n)   # update old pypsa-eur costs with new costs
 
+    # safe cost assumptions
+    costs.to_csv(snakemake.output.costs)
+    
     add_co2_tracking(n)
 
     add_generation(n)
@@ -1809,4 +1831,4 @@ if __name__ == "__main__":
         print("no EU fossil gas")
         n.generators = n.generators[n.generators.index!="EU fossil gas"]
 # %%
-    n.export_to_netcdf(snakemake.output[0])
+    n.export_to_netcdf(snakemake.output.network)

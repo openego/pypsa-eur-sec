@@ -1,10 +1,7 @@
 
 from six import iteritems
 
-import sys
 
-sys.path.append("../pypsa-eur/scripts")
-sys.path.append("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts/")
 import pandas as pd
 
 import numpy as np
@@ -13,9 +10,10 @@ import pypsa
 
 from vresutils.costdata import annuity
 
-from prepare_sector_network import generate_periodic_profiles
-
-from add_electricity import load_costs
+from prepare_sector_network import generate_periodic_profiles, prepare_costs
+import os
+os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur/scripts")
+#from add_electricity import load_costs
 
 import yaml
 
@@ -40,7 +38,7 @@ override_component_attrs["StorageUnit"].loc["p_dispatch"] = ["series","MW",0.,"S
 override_component_attrs["StorageUnit"].loc["p_store"] = ["series","MW",0.,"Storage charging.","Output"]
 
 
-#%%
+# %%
 
 def assign_carriers(n):
     if "carrier" not in n.lines:
@@ -242,15 +240,20 @@ def calculate_curtailment(n,label,curtailment):
 
 def calculate_energy(n,label,energy):
 
-    for c in n.iterate_components(n.one_port_components|n.branch_components):
+    for c in n.iterate_components(n.branch_components):# (n.one_port_components|n.branch_components):
 
         if c.name in n.one_port_components:
-            c_energies = c.pnl.p.multiply(n.snapshot_weightings,axis=0).sum().multiply(c.df.sign).groupby(c.df.carrier).sum()
+            c_energies = (c.pnl.p.multiply(n.snapshot_weightings,axis=0).sum()
+                          .multiply(c.df.sign).groupby(c.df.carrier).sum())
         else:
+            print(c.name)
             c_energies = pd.Series(0.,c.df.carrier.unique())
+            test2 = pd.Series(0.,c.df.carrier.unique())
             for port in [col[3:] for col in c.df.columns if col[:3] == "bus"]:
+                carrier_relevant = c.df[c.df["bus"+port]!=""].carrier.unique()
+                test[c.name, port] = c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum().groupby(c.df.carrier).sum()
+                test2.loc[carrier_relevant] -= test[c.name, port].loc[carrier_relevant]
                 c_energies -= c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum().groupby(c.df.carrier).sum()
-                test[c.name] = c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum()
         c_energies = pd.concat([c_energies], keys=[c.list_name])
 
         energy = energy.reindex(c_energies.index|energy.index)
@@ -574,16 +577,13 @@ if __name__ == "__main__":
         snakemake.config['results_dir'] = "results/"
         snakemake.config["run"] = "real_district_share"
         snakemake.config["scenario"]["lv"] = [1.0]
-        snakemake.config["scenario"]["sector_opts"] = ["Co2L0-3H-T-H-B_retro_dist_dac_nwtanks",
-                                                       "Co2L0-3H-T-H-B_retro_distmax_dac",
-                                                       "Co2L0-3H-T-H-B_retro_distmax_dac_nwtanks",
-                                                       "Co2L0-3H-T-H-B_retro_dist_dac",
-                                                       "Co2L0-3H-T-H-B_retro_dist_nodac",
-                                                       "Co2L0-3H-T-H-B_noretro_dist_dac_nowtanks",
-                                                       "Co2L0-3H-T-H-B_noretro_distmax_dac",
-                                                       "Co2L0-3H-T-H-B_noretro_distmax_dac_nowtanks",
-                                                       "Co2L0-3H-T-H-B_noretro_dist_dac",
-                                                       "Co2L0-3H-T-H-B_noretro_dist_nodac"]
+        snakemake.config["scenario"]["sector_opts"] = ["-B_dist_retro_nwtanks_dac",
+                                                       "-B_2dist_retro_nwtanks_dac",
+                                                       "-B_09_dist_retro_nwtanks", 
+                                                       "-B_distmax_retro_nwtanks_dac",
+                                                       "-B_dist_noretro_nwtanks_dac",
+                                                       "-B_05-dist_noretro_nwtanks",
+                                                       "-B_distmax_noretro_nwtanks"]
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'
         snakemake.output = Dict()
@@ -602,7 +602,8 @@ if __name__ == "__main__":
                      for lv in snakemake.config['scenario']['lv']}
     print(networks_dict)
 
-    costs_db = load_costs(Nyears=1.,tech_costs="data/costs.csv",config=snakemake.config["costs"],elec_config=snakemake.config['electricity'])
+    os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
+    costs_db =load_costs(Nyears=1.,tech_costs="/home/ws/bw0928/Dokumente/pypsa-eur-sec/assumed_costs.csv",config=snakemake.config["costs"],elec_config=snakemake.config['electricity'])
 
     df = make_summaries(networks_dict)
 

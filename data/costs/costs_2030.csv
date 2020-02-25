@@ -196,8 +196,11 @@ ror,FOM,2.0,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 ror,efficiency,0.9,per unit,DIW DataDoc http://hdl.handle.net/10419/80348
 ror,investment,3312.2424096000004,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 ror,lifetime,80.0,years,IEA2010
-solar,efficiency,1.0,per unit,
-solar,lifetime,30.0,years,
+solar,FOM,1.463,%/year,Technology Data for Energy Plants for Electricity and District heating generation
+solar,VOM,0.0,EUR/MWh,Technology Data for Energy Plants for Electricity and District heating generation
+solar,efficiency,1.0,per unit,Technology Data for Energy Plants for Electricity and District heating generation
+solar,investment,631.6942467376834,EUR/kWel,Technology Data for Energy Plants for Electricity and District heating generation
+solar,lifetime,30.0,years,Technology Data for Energy Plants for Electricity and District heating generation
 solar-rooftop,FOM,2.0,%/year,ETIP PV
 solar-rooftop,discount rate,0.04,per unit,standard for decentral
 solar-rooftop,investment,784.313725490196,EUR/kWel,European PV Technology and Innovation Platform

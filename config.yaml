@@ -2,7 +2,7 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: 'salt_cavern_pot'
+run: 'new_costs'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
@@ -85,6 +85,7 @@ sector:
   'dac' : False
   'fossil_gas': False
   'costs_old' : False
+  'h2_costs_old': True
   'co2_vent' : True
   'SMR' : True
   'ccs' : False
@@ -196,6 +197,7 @@ plotting:
     'offwind-dc' : "#009999"
     'offshore wind (DC)' : "#009999"
     "hydro" : "#3B5323"
+    'hydro+PHS': "#3B5323"
     "hydro reservoir" : "#3B5323"
     "ror" : "#78AB46"
     "run of river" : "#78AB46"
