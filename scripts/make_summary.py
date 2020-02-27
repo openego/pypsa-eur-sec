@@ -9,7 +9,7 @@ import numpy as np
 import pypsa
 
 from vresutils.costdata import annuity
-
+os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
 from prepare_sector_network import generate_periodic_profiles, prepare_costs
 import os
 os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur/scripts")
@@ -248,11 +248,11 @@ def calculate_energy(n,label,energy):
         else:
             print(c.name)
             c_energies = pd.Series(0.,c.df.carrier.unique())
-            test2 = pd.Series(0.,c.df.carrier.unique())
+#            test2 = pd.Series(0.,c.df.carrier.unique())
             for port in [col[3:] for col in c.df.columns if col[:3] == "bus"]:
                 carrier_relevant = c.df[c.df["bus"+port]!=""].carrier.unique()
-                test[c.name, port] = c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum().groupby(c.df.carrier).sum()
-                test2.loc[carrier_relevant] -= test[c.name, port].loc[carrier_relevant]
+#                test[c.name, port] = c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum().groupby(c.df.carrier).sum()
+#                test2.loc[carrier_relevant] -= test[c.name, port].loc[carrier_relevant]
                 c_energies -= c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum().groupby(c.df.carrier).sum()
         c_energies = pd.concat([c_energies], keys=[c.list_name])
 
@@ -566,7 +566,7 @@ if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
         os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
-        name = "elec_s_38_lv1.0__Co2L0-3H-T-H-B_retro_distmax_dac"
+        name = "elec_s_38_lv1.0__Co2L0-3H-T-H"
         from vresutils import Dict
         import yaml
         snakemake = Dict()
@@ -575,15 +575,15 @@ if __name__ == "__main__":
 
         #overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "real_district_share"
+        snakemake.config["run"] = "new_costs"
         snakemake.config["scenario"]["lv"] = [1.0]
-        snakemake.config["scenario"]["sector_opts"] = ["-B_dist_retro_nwtanks_dac",
-                                                       "-B_2dist_retro_nwtanks_dac",
-                                                       "-B_09_dist_retro_nwtanks", 
-                                                       "-B_distmax_retro_nwtanks_dac",
-                                                       "-B_dist_noretro_nwtanks_dac",
-                                                       "-B_05-dist_noretro_nwtanks",
-                                                       "-B_distmax_noretro_nwtanks"]
+        snakemake.config["scenario"]["sector_opts"] = ["dist_retro",
+                                                       "06-dist_retro",
+                                                       "08-dist_retro",
+                                                       "distmax_retro",
+                                                       "dist_noretro_tes",
+                                                       "distmax_noretro_tes"
+                                                       ]
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'
         snakemake.output = Dict()
@@ -591,7 +591,7 @@ if __name__ == "__main__":
             snakemake.output[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=snakemake.config['run'],item=item)
 
     networks_dict = {(cluster,lv,opt+sector_opt) :
-                     snakemake.config['results_dir'] + snakemake.config['run'] + '/postnetworks/elec_s_38_lv1.0__{}.nc'.format(sector_opt)\
+                     snakemake.config['results_dir'] + snakemake.config['run'] + '/postnetworks/elec_s_38_lv1.0__Co2L0-3H-T-H-B_{}.nc'.format(sector_opt)\
                      .format(cluster=cluster,
                              opt=opt,
                              lv=lv,
@@ -603,7 +603,7 @@ if __name__ == "__main__":
     print(networks_dict)
 
     os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
-    costs_db =load_costs(Nyears=1.,tech_costs="/home/ws/bw0928/Dokumente/pypsa-eur-sec/assumed_costs.csv",config=snakemake.config["costs"],elec_config=snakemake.config['electricity'])
+    costs_db =load_costs(Nyears=1.,tech_costs="/home/ws/bw0928/Dokumente/pypsa-eur-sec/data/costs_old.csv",config=snakemake.config["costs"],elec_config=snakemake.config['electricity'])
 
     df = make_summaries(networks_dict)
 

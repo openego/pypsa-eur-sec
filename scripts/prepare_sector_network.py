@@ -95,7 +95,7 @@ def remove_elec_base_techs(n):
         print("removing {} with carrier {}".format(components, to_remove))
         df.drop(df.index[df.carrier.isin(to_remove)], inplace=True)
 
-def update_elec_costs(n):
+def update_elec_costs(n, costs):
     """update the old cost assumptions from pypsa-eur to the new ones,
     this function keeps the old DC line costs and the old wind costs"""
     
@@ -963,18 +963,27 @@ def add_heat(network):
         nodes[sector + " urban decentral"] = pop_layout.index
 
     if options["central"] and not options["central_real"]:
-        urban_decentral_ct = pd.Index(["ES", "GR", "PT", "IT", "BG"])
+#        urban_decentral_ct = pd.Index(["ES", "GR", "PT", "IT", "BG"])
         central_fraction = options['central_fraction']
-        urban_ct = pd.DataFrame(urban_fraction)
-        urban_ct["country"] =  urban_ct.index.str[:2]
-        urban_ct[urban_ct.country.isin(urban_decentral_ct)] = 0
-        dist_fraction = central_fraction * urban_ct.iloc[:,0]
+#        urban_ct = pd.DataFrame(urban_fraction)
+#        urban_ct["country"] =  urban_ct.index.str[:2]
+        decentral_nodes = dist_heat_share[dist_heat_share==0]
+        dist_fraction = central_fraction * urban_fraction
         nodes["urban central"] = dist_fraction.index
         
     if options["central_real"]:  # take current district heating share
         dist_fraction = dist_heat_share*pop_layout["urban_ct_fraction"] / pop_layout["fraction"] 
         nodes["urban central"] = dist_fraction.index
-        
+        # if district heating share larger than urban fraction -> set urban fraction to district heating share
+        urban_fraction = pd.concat([urban_fraction,dist_fraction], axis=1).max(axis=1)
+        diff = urban_fraction - dist_fraction
+        dist_fraction += diff * options["dh_strength"]
+        print("************************************")
+        print("the current DH share compared to the maximum possible is increased \
+               \n by a factor of ", options["dh_strength"], "resulting DH share: ",
+               dist_fraction)
+        print("**********************************")
+
 
     # NB: must add costs of central heating afterwards (EUR 400 / kWpeak, 50a,
     # 1% FOM from Fraunhofer ISE)
@@ -986,8 +995,6 @@ def add_heat(network):
             heat_demand[sector + " space"] = heat_demand[sector + " space"].apply(lambda x: space_heat_retro(
                 x, options["years"], options["retro_rate"], options["dE"], option=options["retro_opt"]))
     
-    # if district heating share larger than urban fraction -> set urban fraction to district heating share
-    urban_fraction = pd.concat([urban_fraction,dist_fraction], axis=1).max(axis=1)
     heat_types = ["residential rural", "services rural", 
                  "residential urban decentral", "services urban decentral",
                  "urban central"]
@@ -1713,7 +1720,11 @@ if __name__ == "__main__":
                 solar_thermal_urban="resources/solar_thermal_urban_{network}_s{simpl}_{clusters}.nc",
                 solar_thermal_rural="resources/solar_thermal_rural_{network}_s{simpl}_{clusters}.nc",
                 timezone_mappings='data/timezone_mappings.csv'),
-            output=['networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc'])
+                output=dict(
+                    network='networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc',
+                    costs='/costs/assumed_costs_{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{sector_opts}.csv'
+                    )
+                )
         with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
             snakemake.config = yaml.safe_load(f)
 
@@ -1749,7 +1760,7 @@ if __name__ == "__main__":
     n.loads["carrier"] = "electricity"
     
     if not options["costs_old"]:
-        update_elec_costs(n)   # update old pypsa-eur costs with new costs
+        update_elec_costs(n, costs)   # update old pypsa-eur costs with new costs
 
     # safe cost assumptions
     costs.to_csv(snakemake.output.costs)
