@@ -25,7 +25,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 pd.options.mode.chained_assignment = None 
-# %%  ******** (1) ASSUMPTIONS - PARAMETERS **********************************
+ # %%  ******** (1) ASSUMPTIONS - PARAMETERS **********************************
 
 k = 0.035   # thermal conductivity standard value
 interest_rate = 0.04
@@ -243,18 +243,18 @@ area_tot = area_tot.append(summed_area).unstack().stack()
 res.to_csv(snakemake.output.retro_cost)
 area_tot.to_csv(snakemake.output.floor_area)
 
-# --- plot -------------------------------------------------------------
+#%% --- plot -------------------------------------------------------------
 if plot:
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    for ct in res.index.levels[0]:
+    for ct in ['DE', 'SE', 'BG']: #res.index.levels[0]:
         dE = (res.loc[(ct, "tot"), "dE"]*100)
         cost = res.loc[(ct, "tot"), "cost"]
         df = pd.concat([dE, cost], axis=1)
         df.columns = ["dE", "cost/m²"]
         df.plot(x="dE", y="cost/m²", grid=True, label=ct, ax=ax)
         plt.xlim([0, 100])
-        plt.ylim([0, 7])
+#        plt.ylim([0, 7])
         plt.ylabel("Euro/m²")
         plt.xlabel("energy demand in % of unrefurbished")
     ax.legend(bbox_to_anchor=(1.5, 1.0), ncol=2)

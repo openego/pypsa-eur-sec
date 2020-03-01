@@ -1093,8 +1093,8 @@ def add_heat(network):
                          carrier=name + " water tanks",
                          standing_loss=1 - np.exp(-1 / (24. * tes_time_constant_days)),
                          capital_cost=costs.at[name_type + ' water tank storage',
-                                               'fixed'] / (1.17e-3 * 40))  # conversion from EUR/m^3 to EUR/MWh for 40 K diff and 1.17 kWh/m^3/K
-
+                                               'fixed'])  # new costs are in EUR/kWh / (1.17e-3 * 40))  # conversion from EUR/m^3 to EUR/MWh for 40 K diff and 1.17 kWh/m^3/K
+                         
         if options["boilers"]:
 
             network.madd("Link",
@@ -1248,18 +1248,23 @@ def add_heat(network):
                     name = node + " " + carrier + " heat"
                     if (name in list(network.loads_t.p_set.columns)):
                         
-                        if "urban" in carrier:
-                            f = urban_fraction[node]
+                        if "urban central" in carrier:
+                            f = dist_fraction[node]
+                        elif "urban decentral" in carrier:
+                            f = urban_fraction[node] - dist_fraction[node]
                         else:
                             f = 1 - urban_fraction[node]
                         
+                        if f == 0:
+                            continue
+                        
                         if "residential" in carrier:
                             sec = "residential"                            
-                        if "services" in carrier:
+                        elif "services" in carrier:
                             sec = "services"                        
                         else:
                             sec = "tot"
-                          
+                        
                         square_metres_c = (square_metres.loc[sec] * f)
                         # weighting instead of taking space heat demand to 
                         # allow simulatounsly exogenous and optimised retrofitting    

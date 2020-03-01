@@ -7,13 +7,13 @@ import pandas as pd
 import numpy as np
 
 import pypsa
-
+import os
 from vresutils.costdata import annuity
 os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
 from prepare_sector_network import generate_periodic_profiles, prepare_costs
 import os
 os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur/scripts")
-#from add_electricity import load_costs
+from add_electricity import load_costs
 
 import yaml
 
@@ -61,7 +61,7 @@ def assign_locations(n):
 def calculate_nodal_cfs(n,label,nodal_cfs):
     #Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
     for c in n.iterate_components((n.branch_components^{"Line","Transformer"})|n.controllable_one_port_components^{"Load","StorageUnit"}):
-        capacities_c = c.df[opt_name.get(c.name,"p") + "_nom_opt"].groupby((c.df.location,c.df.carrier)).sum()
+        capacities_c = c.df[opt_name.get(c.name,"p") + "_nom_opt"].groupby(([c.df.location,c.df.carrier])).sum()
 
         if c.name == "Link":
             p = c.pnl.p0.abs().mean()
@@ -72,7 +72,7 @@ def calculate_nodal_cfs(n,label,nodal_cfs):
         else:
             sys.exit()
 
-        p_c = p.groupby((c.df.location,c.df.carrier)).sum()
+        p_c = p.groupby(([c.df.location,c.df.carrier])).sum()
 
         cf_c = p_c/capacities_c
 
@@ -116,9 +116,8 @@ def calculate_cfs(n,label,cfs):
 def calculate_nodal_costs(n,label,nodal_costs):
     #Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
     for c in n.iterate_components(n.branch_components|n.controllable_one_port_components^{"Load"}):
-        print(c)
-        print(c.name)
-        capital_costs = (c.df.capital_cost*c.df[opt_name.get(c.name,"p") + "_nom_opt"]).groupby((c.df.location,c.df.carrier)).sum()
+        capital_costs = ((c.df.capital_cost*c.df[opt_name.get(c.name,"p") + "_nom_opt"])
+                         .groupby(([c.df.location,c.df.carrier])).sum())
         index = pd.MultiIndex.from_tuples([(c.list_name,"capital") + t for t in capital_costs.index.to_list()])
         nodal_costs = nodal_costs.reindex(index|nodal_costs.index)
         nodal_costs.loc[index,label] = capital_costs.values
@@ -139,7 +138,7 @@ def calculate_nodal_costs(n,label,nodal_costs):
             items = c.df.index[(c.df.carrier == "co2 stored") & (c.df.marginal_cost <= -100.)]
             c.df.loc[items,"marginal_cost"] = -20.
 
-        marginal_costs = (p*c.df.marginal_cost).groupby((c.df.location,c.df.carrier)).sum()
+        marginal_costs = (p*c.df.marginal_cost).groupby(([c.df.location,c.df.carrier])).sum()
         index = pd.MultiIndex.from_tuples([(c.list_name,"marginal") + t for t in marginal_costs.index.to_list()])
         nodal_costs = nodal_costs.reindex(index|nodal_costs.index)
         nodal_costs.loc[index,label] = marginal_costs.values
@@ -206,7 +205,7 @@ def calculate_costs(n,label,costs):
 def calculate_nodal_capacities(n,label,nodal_capacities):
     #Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
     for c in n.iterate_components(n.branch_components|n.controllable_one_port_components^{"Load"}):
-        nodal_capacities_c = c.df[opt_name.get(c.name,"p") + "_nom_opt"].groupby((c.df.location,c.df.carrier)).sum()
+        nodal_capacities_c = c.df[opt_name.get(c.name,"p") + "_nom_opt"].groupby(([c.df.location,c.df.carrier])).sum()
         index = pd.MultiIndex.from_tuples([(c.list_name,) + t for t in nodal_capacities_c.index.to_list()])
         nodal_capacities = nodal_capacities.reindex(index|nodal_capacities.index)
         nodal_capacities.loc[index,label] = nodal_capacities_c.values
@@ -577,12 +576,30 @@ if __name__ == "__main__":
         snakemake.config['results_dir'] = "results/"
         snakemake.config["run"] = "new_costs"
         snakemake.config["scenario"]["lv"] = [1.0]
-        snakemake.config["scenario"]["sector_opts"] = ["dist_retro",
-                                                       "06-dist_retro",
-                                                       "08-dist_retro",
+        snakemake.config["scenario"]["sector_opts"] = [
+
+                                                       "dist_retro",
+                                            #           "-B_01dist_retro",
+                                            #           "-B_02dist_retro",
+                                            #           "-B_03dist_retro",
+                                            #           "-B_04dist_retro",
+                                            #           "-B_05dist_retro",
+                                            #           "-B_06dist_retro",
+                                            #           "-B_07dist_retro",
+                                            #           "-B_08dist_retro",
+                                            #           "-B_09dist_retro",
                                                        "distmax_retro",
-                                                       "dist_noretro_tes",
-                                                       "distmax_noretro_tes"
+                                                       "dist_noretro",
+#                                                       "01dist_noretro",
+#                                                       "02dist_noretro",
+                                            #           "03dist_noretro",
+#                                                       "04dist_noretro",
+#                                                       "05dist_noretro",
+#                                                       "06dist_noretro",
+                                            #           "07dist_noretro",
+#                                                       "08dist_noretro",
+                                            #           "09dist_noretro",
+                                                       "distmax_noretro"
                                                        ]
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'
