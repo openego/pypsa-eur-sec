@@ -202,6 +202,7 @@ plotting:
     'offshore wind (AC)' : "c"
     'offwind-dc' : "#009999"
     'offshore wind (DC)' : "#009999"
+    'wave' : "#004444"
     "hydro" : "#3B5323"
     'hydro+PHS': "#3B5323"
     "hydro reservoir" : "#3B5323"

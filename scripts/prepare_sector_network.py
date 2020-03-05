@@ -703,6 +703,37 @@ def add_generation(network):
                      efficiency=costs.at[generator, 'efficiency'],
                      efficiency2=costs.at[carrier, 'CO2 intensity'])
 
+def add_wave(network, wave_cost_factor):
+    wave_fn = "data/WindWaveWEC_GLTB.xlsx"
+
+    locations = ["FirthForth","Hebrides"]
+
+    #in kW
+    capacity = pd.Series([750,1000,600],["Attenuator","F2HB","MultiPA"])
+
+    #in EUR/MW
+    costs = wave_cost_factor*pd.Series([2.5,2,1.5],["Attenuator","F2HB","MultiPA"])*1e6
+
+    sheets = {}
+
+    for l in locations:
+        sheets[l] = pd.read_excel(wave_fn,
+                                  index_col=0,skiprows=[0],parse_dates=True,
+                                  sheet_name=l)
+
+    to_drop = ["Vestas 3MW","Vestas 8MW"]
+    wave = pd.concat([sheets[l].drop(to_drop,axis=1).divide(capacity,axis=1) for l in locations],
+                     keys=locations,
+                     axis=1)
+
+    for wave_type in costs.index:
+        n.add("Generator",
+              "Hebrides "+wave_type,
+              bus="GB4 0",
+              p_nom_extendable=True,
+              carrier="wave",
+              capital_cost=(annuity(25,0.07)+0.03)*costs[wave_type],
+              p_max_pu=wave["Hebrides",wave_type])
 
 def add_storage(network):
     print("adding electricity storage")
@@ -1795,6 +1826,10 @@ if __name__ == "__main__":
             limit = float(limit.replace("p", ".").replace("m", "-"))
             print(o, limit)
             options['space_heating_fraction'] = limit
+        if o[:4] == "wave":
+            wave_cost_factor = float(o[4:].replace("p",".").replace("m","-"))
+            print("Including wave generators with cost factor of", wave_cost_factor)
+            add_wave(n, wave_cost_factor)
 
     nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, solar_thermal, transport, avail_profile, dsm_profile, co2_totals, nodal_transport_data, dist_heat_share = prepare_data(
         n)
