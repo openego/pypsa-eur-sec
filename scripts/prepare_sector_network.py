@@ -537,9 +537,9 @@ def prepare_data(network):
     co2_totals = 1e6 * \
         pd.read_csv(snakemake.input.co2_totals_name, index_col=0)
 
-    return  nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, \
-            solar_thermal, transport, avail_profile, dsm_profile, \
-            co2_totals, nodal_transport_data, dist_heat_share
+    return  (nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, 
+            solar_thermal, transport, avail_profile, dsm_profile, 
+            co2_totals, nodal_transport_data, dist_heat_share)
 
 
 def convert_units(costs):
@@ -1770,7 +1770,7 @@ if __name__ == "__main__":
                 solar_thermal_rural="resources/solar_thermal_rural_{network}_s{simpl}_{clusters}.nc",
                 timezone_mappings='data/timezone_mappings.csv'),
                 output=dict(
-                    network='networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc',
+                    network='/results/prenetworks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc',
                     costs='/costs/assumed_costs_{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{sector_opts}.csv'
                     )
                 )
@@ -1831,8 +1831,9 @@ if __name__ == "__main__":
             print("Including wave generators with cost factor of", wave_cost_factor)
             add_wave(n, wave_cost_factor)
 
-    nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, solar_thermal, transport, avail_profile, dsm_profile, co2_totals, nodal_transport_data, dist_heat_share = prepare_data(
-        n)
+    (nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, solar_thermal,
+     transport, avail_profile, dsm_profile, co2_totals, nodal_transport_data,
+     dist_heat_share) = prepare_data(n)
 
     if "nodistrict" in opts:
         options["central"] = False

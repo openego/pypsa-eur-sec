@@ -1,22 +1,4 @@
-<<<<<<< HEAD
 import os
-
-# os.system("conda config --add channels http://conda.anaconda.org/gurobi")
-
-# os.system("conda install -y gurobi=9.0.0")
-
-# os.system("conda install -y git")
-
-# os.system("pip install -U git+git://github.com/PyPSA/pypsa.git@nomopyomo#egg=pypsa")
-
-#import sys
-
-#sys.path = ["pypsa"] + sys.path
-
-
-=======
->>>>>>> master
-
 import numpy as np
 import pandas as pd
 import logging
@@ -66,10 +48,8 @@ def prepare_network(n, solve_opts=None):
         solve_opts = snakemake.config['solving']['options']
 
     if 'clip_p_max_pu' in solve_opts:
-<<<<<<< HEAD
+
         print("clip_p_max_pu: ", solve_opts['clip_p_max_pu'])
-=======
->>>>>>> master
         for df in (n.generators_t.p_max_pu, n.generators_t.p_min_pu, n.storage_units_t.inflow):
             df.where(df>solve_opts['clip_p_max_pu'], other=0., inplace=True)
 

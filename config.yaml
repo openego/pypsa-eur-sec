@@ -2,7 +2,7 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: 'salt_cavern_pot'
+run: 'new_costs2'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
@@ -94,7 +94,7 @@ sector:
   'h2_costs_old': True
   'co2_vent' : True
   'SMR' : True
-  'ccs' : False
+  'ccs' : True
   'ccs_fraction' : 0.0 # 0.9
   'hydrogen_underground_storage' : True
   'use_fischer_tropsch_waste_heat' : True
