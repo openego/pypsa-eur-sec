@@ -339,8 +339,8 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
         snakemake = MockSnakemake(
-            wildcards=dict(network='elec', simpl='', clusters='38', lv='1.0', opts='Co2L0-12H-T-H-B-I'),
-            input=dict(network="results/191108-h2_pipeline_network/prenetworks/{network}_s{simpl}_{clusters}_lv{lv}__{opts}.nc"),
+            wildcards=dict(network='elec', simpl='', clusters='38', lv='1.0', opts='Co2p10L0-24H-T-H-B'),
+            input=dict(network="results/new_costs/prenetworks/{network}_s{simpl}_{clusters}_lv{lv}__{opts}.nc"),
             output=["results/191108-h2_pipeline_network/postnetworks/s{simpl}_{clusters}_lv{lv}_{opts}-test.nc"],
             log=dict(gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_gurobi-test.log",
                      python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python-test.log")

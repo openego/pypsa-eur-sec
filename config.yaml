@@ -2,7 +2,7 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: 'new_costs'
+run: 'salt_cavern_pot'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
@@ -78,6 +78,11 @@ sector:
   'tes_tau' : 3.
   'boilers' : True
   'chp' : True
+  'chp_parameters':
+    'eta_elec' : 0.468 #electrical efficiency with no heat output
+    'c_v' : 0.15 #loss of fuel for each addition of heat
+    'c_b' : 0.75 #backpressure ratio
+    'p_nom_ratio' : 1.0
   'solar_thermal' : True
   'solar_cf_correction': 0.788457  # =  >>> 1/1.2683
   'marginal_cost_storage' : 0. #1e-4

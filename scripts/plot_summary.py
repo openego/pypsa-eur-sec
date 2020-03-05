@@ -1,4 +1,4 @@
-
+7
 
 
 import pandas as pd
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         import yaml
         snakemake = Dict()
         with open('config.yaml') as f:
-            snakemake.config = yaml.load(f)
+            snakemake.config = yaml.safe_load(f)
         snakemake.input = Dict()
         snakemake.output = Dict()
 
