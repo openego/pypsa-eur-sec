@@ -104,7 +104,7 @@ def update_elec_costs(n, costs):
     for c in n.iterate_components(n.one_port_components):
         if c.name !="Load":
             print(c.name)
-            cost_to_replace = costs.loc[~costs.index.str.contains("wind")]
+            cost_to_replace = costs #.loc[~costs.index.str.contains("wind")]
             cap_dict = cost_to_replace["fixed"].to_dict()
             vom_dict = (cost_to_replace["VOM"] + cost_to_replace["fuel"]/cost_to_replace["efficiency"]).to_dict()
             eff_dict = cost_to_replace["efficiency"].to_dict()
@@ -112,10 +112,7 @@ def update_elec_costs(n, costs):
             c.df["marginal_cost"] = c.df["carrier"].map(vom_dict).combine_first(c.df["marginal_cost"])
             if c.name=="Generator":
                 c.df["efficiency"] = c.df["carrier"].map(eff_dict).combine_first(c.df["efficiency"])
-    # add the pypsa-eur cost assumptions for wind
-    cap = (n.generators.capital_cost[n.generators.carrier.str.contains("wind")]
-           .groupby(n.generators.carrier).mean())
-    costs = pd.concat([costs,cap], axis=1, sort=False)
+
 
 
 def add_co2_tracking(n):
@@ -575,11 +572,7 @@ def prepare_costs():
                     "efficiency": 1,
                     "fuel": 0,
                     "investment": 0,
-                    "lifetime": 25,
-                    "c_b": 0,
-                    "c_v":0,
-                    "efficiency-heat": 0,
-                    "CO2 intensity": 0}
+                    "lifetime": 25}
 
     # set all asset costs and other parameters
     costs = pd.read_csv(snakemake.input.costs + "costs_{}.csv".format(cost_year),
@@ -1191,53 +1184,66 @@ def add_heat(network):
         if options["chp"]:
 
             if name == "urban central":
-                
-                # additional bus for urban central CHP
-                network.madd("Bus",
-                             nodes[name] + " urban central CHP",
-                             carrier="urban central CHP")
-                
-                # link gas to CHP bus without CCS
+                #add gas CHP; biomass CHP is added in biomass section
                 network.madd("Link",
-                             nodes[name] + " gas to urban central CHP",
+                             nodes[name] + " urban central gas CHP electric",
                              bus0="EU gas",
-                             bus1=nodes[name] + " urban central CHP",
+                             bus1=nodes[name],
                              bus2="co2 atmosphere",
+                             carrier="urban central gas CHP electric",
+                             p_nom_extendable=True,
+                             capital_cost=(costs.at['central gas CHP','fixed']
+                                           * costs.at['central gas CHP','efficiency']),
+                             marginal_cost=costs.at['central gas CHP','VOM'],
+                             efficiency=costs.at['central gas CHP','efficiency'],
                              efficiency2=costs.at['gas','CO2 intensity'],
-                             carrier="gas to central CHP",
-                             p_nom_extendable=True)
-                
-                # link gas to CHP bus with CCS          
+                             c_b=costs.at['central gas CHP','c_b'],
+                             c_v=options["chp_parameters"]["c_v"],
+                             p_nom_ratio=costs.at['central gas CHP','p_nom_ratio'])
+
                 network.madd("Link",
-                             nodes[name] + " gas to urban central CHP CCS",
+                             nodes[name] + " urban central gas CHP heat",
                              bus0="EU gas",
-                             bus1=nodes[name] + " urban central CHP",
+                             bus1=nodes[name] + " urban central heat",
+                             bus2="co2 atmosphere",
+                             carrier="urban central gas CHP heat",
+                             p_nom_extendable=True,
+                             marginal_cost=costs.at['central gas CHP','VOM'],
+                             efficiency=(costs.at['central gas CHP','efficiency']
+                                         / options["chp_parameters"]["c_v"]),
+                             efficiency2=costs.at['gas','CO2 intensity'])
+
+                network.madd("Link",
+                             nodes[name] + " urban central gas CHP CCS electric",
+                             bus0="EU gas",
+                             bus1=nodes[name],
                              bus2="co2 atmosphere",
                              bus3="co2 stored",
-                             efficiency2=costs.at['gas', 'CO2 intensity']*(1-options["ccs_fraction"]),
-                             efficiency3=costs.at['gas', 'CO2 intensity']*options["ccs_fraction"],
-                             carrier="gas to central CHP CCS",
-                             p_nom_extendable=True)
-
-                network.madd("Link",
-                             nodes[name] + " urban central CHP electric",
-                             bus0=nodes[name] + " urban central CHP",
-                             bus1=nodes[name],
-                             carrier="urban central CHP electric",
+                             carrier="urban central gas CHP CCS electric",
                              p_nom_extendable=True,
-                             capital_cost=(costs.at['central gas CHP', 'fixed']
-                                           * options['chp_parameters']['eta_elec']),
-                             efficiency=options['chp_parameters']['eta_elec'])
+                             capital_cost=(costs.at['central gas CHP CCS','fixed']
+                                           * costs.at['central gas CHP CCS','efficiency']),
+                             marginal_cost=costs.at['central gas CHP CCS','VOM'],
+                             efficiency=costs.at['central gas CHP CCS','efficiency'],
+                             efficiency2=costs.at['gas','CO2 intensity']*(1-options["ccs_fraction"]),
+                             efficiency3=costs.at['gas','CO2 intensity']*options["ccs_fraction"],
+                             c_b=costs.at['central gas CHP CCS','c_b'],
+                             c_v=options["chp_parameters"]["c_v"],
+                             p_nom_ratio=costs.at['central gas CHP CCS','p_nom_ratio'])
 
                 network.madd("Link",
-                             nodes[name] + " urban central CHP heat",
-                             bus0=nodes[name] + " urban central CHP",
+                             nodes[name] + " urban central gas CHP CCS heat",
+                             bus0="EU gas",
                              bus1=nodes[name] + " urban central heat",
-                             carrier="urban central CHP heat",
+                             bus2="co2 atmosphere",
+                             bus3="co2 stored",
+                             carrier="urban central gas CHP CCS heat",
                              p_nom_extendable=True,
-                             efficiency=(options['chp_parameters']['eta_elec']
-                                         / options['chp_parameters']['c_v']))
-
+                             marginal_cost=costs.at['central gas CHP CCS','VOM'],
+                             efficiency=(costs.at['central gas CHP CCS','efficiency']
+                                         / options["chp_parameters"]["c_v"]),
+                             efficiency2=costs.at['gas','CO2 intensity']*(1-options["ccs_fraction"]),
+                             efficiency3=costs.at['gas','CO2 intensity']*options["ccs_fraction"])
 
             else:
                 network.madd("Link",
@@ -1344,7 +1350,7 @@ def add_biomass(network):
 
     print("adding biomass")
 
-#    nodes = pop_layout.index
+    nodes = pop_layout.index
 
     # biomass distributed at country level - i.e. transport within country
     # allowed
@@ -1401,12 +1407,13 @@ def add_biomass(network):
                      bus1=urban_central,
                      carrier="urban central solid biomass CHP electric",
                      p_nom_extendable=True,
-                     capital_cost=costs.at['central solid biomass CHP','fixed']*costs.at['central solid biomass CHP','efficiency'],
+                     capital_cost=(costs.at['central solid biomass CHP','fixed']
+                                   * costs.at['central solid biomass CHP','efficiency']),
                      marginal_cost=costs.at['central solid biomass CHP','VOM'],
                      efficiency=costs.at['central solid biomass CHP','efficiency'],
                      c_b=costs.at['central solid biomass CHP','c_b'],
-                     c_v=options['chp_parameters']['c_v'],
-                     p_nom_ratio=options['chp_parameters']['p_nom_ratio'])
+                     c_v=options["chp_parameters"]["c_v"],
+                     p_nom_ratio=costs.at['central solid biomass CHP','p_nom_ratio'])
 
 
         network.madd("Link",
@@ -1417,9 +1424,8 @@ def add_biomass(network):
                      p_nom_extendable=True,
                      marginal_cost=costs.at['central solid biomass CHP','VOM'],
                      efficiency=(costs.at['central solid biomass CHP','efficiency']
-                                 / options['chp_parameters']['c_v']))
+                                 / options["chp_parameters"]["c_v"]))
 
-        
         network.madd("Link",
                      urban_central + " urban central solid biomass CHP CCS electric",
                      bus0="EU solid biomass",
@@ -1428,14 +1434,15 @@ def add_biomass(network):
                      bus3="co2 stored",
                      carrier="urban central solid biomass CHP CCS electric",
                      p_nom_extendable=True,
-                     capital_cost=costs.at['central solid biomass CHP CCS','fixed']*costs.at['central solid biomass CHP CCS','efficiency'],
+                     capital_cost=(costs.at['central solid biomass CHP CCS','fixed']
+                                   * costs.at['central solid biomass CHP CCS','efficiency']),
                      marginal_cost=costs.at['central solid biomass CHP CCS','VOM'],
                      efficiency=costs.at['central solid biomass CHP CCS','efficiency'],
                      efficiency2=-costs.at['solid biomass','CO2 intensity']*options["ccs_fraction"],
                      efficiency3=costs.at['solid biomass','CO2 intensity']*options["ccs_fraction"],
                      c_b=costs.at['central solid biomass CHP','c_b'],
-                     c_v=options['chp_parameters']['c_v'],
-                     p_nom_ratio=options['chp_parameters']['p_nom_ratio'])
+                     c_v=options["chp_parameters"]["c_v"],
+                     p_nom_ratio=costs.at['central solid biomass CHP','p_nom_ratio'])
 
         network.madd("Link",
                      urban_central + " urban central solid biomass CHP CCS heat",
@@ -1445,11 +1452,11 @@ def add_biomass(network):
                      bus3="co2 stored",
                      carrier="urban central solid biomass CHP CCS heat",
                      p_nom_extendable=True,
-                     marginal_cost=costs.at['central solid biomass CHP CCS', 'VOM'],
-                     efficiency=(costs.at['central solid biomass CHP CCS', 'efficiency']
-                                 / options['chp_parameters']['c_v']),
-                     efficiency2=-costs.at['solid biomass', 'CO2 intensity']*options["ccs_fraction"],
-                     efficiency3=costs.at['solid biomass', 'CO2 intensity']*options["ccs_fraction"])
+                     marginal_cost=costs.at['central solid biomass CHP CCS','VOM'],
+                     efficiency=(costs.at['central solid biomass CHP CCS','efficiency']
+                                 / options["chp_parameters"]["c_v"]),
+                     efficiency2=-costs.at['solid biomass','CO2 intensity']*options["ccs_fraction"],
+                     efficiency3=costs.at['solid biomass','CO2 intensity']*options["ccs_fraction"])
 
 
 def add_industry(network):
@@ -1810,9 +1817,6 @@ if __name__ == "__main__":
     
     if not options["costs_old"]:
         update_elec_costs(n, costs)   # update old pypsa-eur costs with new costs
-
-    # safe cost assumptions
-    costs.to_csv(snakemake.output.costs)
     
     add_co2_tracking(n)
 

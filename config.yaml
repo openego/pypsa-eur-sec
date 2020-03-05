@@ -88,10 +88,10 @@ sector:
   'marginal_cost_storage' : 0. #1e-4
   'methanation' : True
   'helmeth' : True
-  'dac' : False
+  'dac' : True
   'fossil_gas': False
   'costs_old' : False
-  'h2_costs_old': True
+  'h2_costs_old': False
   'co2_vent' : True
   'SMR' : True
   'ccs' : True
