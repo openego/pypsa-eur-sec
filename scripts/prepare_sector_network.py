@@ -78,6 +78,39 @@ def space_heat_retro(demand, years, r_rate=None, dE=None, option=None):
     return demand_future
 
 
+def attach_wind_costs(n, costs):
+    """update pypsa eur costs for offwind """
+    for tech in ["onwind", "offwind-ac", "offwind-dc"]:
+        
+        with xr.open_dataset('../pypsa-eur/resources/profile_{}.nc'.format(tech)) as ds:
+#            if ds.indexes['bus'].empty: continue
+
+            suptech = tech.split('-', 2)[0]
+            if suptech == 'offwind':
+                underwater_fraction = ds['underwater_fraction'].to_pandas()
+                connection_cost = (1.25 *
+                                   ds['average_distance'].to_pandas() *
+                                   (underwater_fraction *
+                                    costs.at[tech + '-connection-submarine', 'fixed'] +
+                                    (1. - underwater_fraction) *
+                                    costs.at[tech + '-connection-underground', 'fixed']))
+                capital_cost = (costs.at['offwind', 'fixed'] +
+                                costs.at[tech + '-station', 'fixed'] +
+                                connection_cost)
+                logger.info("Added connection cost of {:0.0f}-{:0.0f} Eur/MW/a to {}"
+                            .format(connection_cost.min(), connection_cost.max(), tech))
+            elif suptech == 'onwind':
+                capital_cost = costs.at['onwind', 'fixed'] #+  ' land-cost are included in DEA
+                                #costs.at['onwind-landcosts', 'fixed'])
+            else:
+                capital_cost = costs.at[tech, 'capital_cost']
+            
+            gens = n.generators[n.generators.carrier==tech].index
+            n.generators.loc[gens, "capital_cost"] = capital_cost.mean()
+            
+            return n
+            
+            
 def remove_elec_base_techs(n):
     """remove conventional generators (e.g. OCGT) and storage units (e.g. batteries and H2)
     from base electricity-only network, since they're added here differently using links
@@ -99,7 +132,7 @@ def update_elec_costs(n, costs):
     """update the old cost assumptions from pypsa-eur to the new ones,
     this function keeps the old DC line costs and the old wind costs"""
     
-    print("updating old pypsa-eur cost assumptions (except wind)")
+    print("updating old pypsa-eur cost assumptions")
     
     for c in n.iterate_components(n.one_port_components):
         if c.name !="Load":
@@ -113,7 +146,7 @@ def update_elec_costs(n, costs):
             if c.name=="Generator":
                 c.df["efficiency"] = c.df["carrier"].map(eff_dict).combine_first(c.df["efficiency"])
 
-
+    n = attach_wind_costs(n, costs)
 
 def add_co2_tracking(n):
 
