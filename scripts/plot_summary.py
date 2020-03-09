@@ -1,6 +1,3 @@
-7
-
-
 import pandas as pd
 
 #allow plotting without Xwindows

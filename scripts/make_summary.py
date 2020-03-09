@@ -574,12 +574,12 @@ if __name__ == "__main__":
 
         #overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "new_costs"
+        snakemake.config["run"] = "new_costs2"
         snakemake.config["scenario"]["lv"] = [1.0]
         snakemake.config["scenario"]["sector_opts"] = [
 
                                                        "dist_retro",
-                                                       "dist_retro_tes",
+#                                                       "dist_retro_tes",
                                             #           "-B_01dist_retro",
                                             #           "-B_02dist_retro",
                                             #           "-B_03dist_retro",
@@ -589,10 +589,10 @@ if __name__ == "__main__":
                                             #           "-B_07dist_retro",
                                             #           "-B_08dist_retro",
                                             #           "-B_09dist_retro",
-                                                       "distmax_retro",
-                                                       "distmax_retro_tes",
+#                                                       "distmax_retro",
+#                                                       "distmax_retro_tes",
                                                        "dist_noretro",
-                                                       "dist_noretro_tes",
+#                                                       "dist_noretro_tes",
 #                                                       "01dist_noretro",
 #                                                       "02dist_noretro",
                                             #           "03dist_noretro",
@@ -602,8 +602,8 @@ if __name__ == "__main__":
                                             #           "07dist_noretro",
 #                                                       "08dist_noretro",
                                             #           "09dist_noretro",
-                                                       "distmax_noretro",
-                                                       "distmax_noretro_tes",
+#                                                       "distmax_noretro",
+#                                                       "distmax_noretro_tes",
                                                        ]
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'

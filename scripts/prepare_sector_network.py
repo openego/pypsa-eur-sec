@@ -1354,9 +1354,17 @@ def add_heat(network):
                             continue
                         space_pu_c = (space_heat_demand_c/space_peak_c).to_frame(name=node)
                         
-                        for strength in retro_cost.cost.columns:
-                            dE = retro_cost.loc[(ct, sec),("dE", strength)]
-                            cost_c = retro_cost.loc[(ct, sec),("cost", strength)]
+                        dE = retro_cost.loc[(ct, sec),("dE")]
+                        dE_diff = abs(dE.diff()).fillna(dE.iloc[0])
+                        cost_c = retro_cost.loc[(ct, sec),("cost")]
+                        capital_cost = cost_c * square_metres_c / ((1-dE) * space_peak_c)
+                        steps = retro_cost.cost.columns
+                        if (capital_cost.diff()<0).sum():
+                            print("warning, costs are not linear for ", ct, " ", sec)
+                            s = capital_cost[(capital_cost.diff()<0)].index
+                            steps = steps.drop(s)
+                            
+                        for strength in steps:
                             network.madd('Generator',
                                          retro_nodes,
                                          suffix=' retrofitting ' + strength +" "  + carrier,
@@ -1365,13 +1373,12 @@ def add_heat(network):
                                          type = carrier, 
                                          carrier="retrofitting",
                                          p_nom_extendable=True,
-                                         p_nom_max=(1 - dE) * space_peak_c,
-                                         dE = dE,
+                                         p_nom_max=(1 - dE_diff[strength]) * space_peak_c,
+                                         dE=dE[strength],
                                          p_max_pu=space_pu_c,
                                          p_min_pu=space_pu_c,
                                          country=ct,
-                                         capital_cost=cost_c * square_metres_c / \
-                                         ((1-dE) * space_peak_c)
+                                         capital_cost=capital_cost[strength]
                                          )
 
             else:
