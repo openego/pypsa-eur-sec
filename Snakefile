@@ -195,7 +195,8 @@ rule prepare_sector_network:
         energy_totals_name='data/energy_totals.csv',
         co2_totals_name='data/co2_totals.csv',
         transport_name='data/transport_data.csv',
-        biomass_potentials='data/biomass_potentials.csv',
+        biomass_potentials='data/biomass/biomass_potentials.csv',
+        biomass_transport='data/biomass/biomass_transport_costs.csv',
         timezone_mappings='data/timezone_mappings.csv',
         heat_profile="data/heat_load_profile_BDEW.csv",
         costs="data/costs/",
@@ -224,7 +225,7 @@ rule prepare_sector_network:
         solar_thermal_total="resources/solar_thermal_total_{network}_s{simpl}_{clusters}.nc",
         solar_thermal_urban="resources/solar_thermal_urban_{network}_s{simpl}_{clusters}.nc",
         solar_thermal_rural="resources/solar_thermal_rural_{network}_s{simpl}_{clusters}.nc"
-    output: 
+    output:
         network = config['results_dir']  +  config['run'] + '/prenetworks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{sector_opts}.nc' #,
 	# costs = config['results_dir']  +  config['run'] + '/costs/assumed_costs_{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{sector_opts}.csv'
     threads: 1

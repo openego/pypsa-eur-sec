@@ -1398,7 +1398,16 @@ def add_biomass(network):
 
     biomass_potentials = pd.read_csv(snakemake.input.biomass_potentials,
                                      index_col=0)
+    
+    # costs for biomass transport
+    transport_costs = pd.read_csv(snakemake.input.biomass_transport,
+                                  index_col=0)
 
+    # potential per node
+    biomass_pot_node = (biomass_potentials.loc[pop_layout.ct]
+                        .set_index(pop_layout.index)
+                        .mul(pop_layout.fraction, axis="index"))
+    
     network.add("Carrier", "biogas")
     network.add("Carrier", "solid biomass")
 
@@ -1407,7 +1416,7 @@ def add_biomass(network):
                  carrier="biogas")
 
     network.madd("Bus",
-                 ["EU solid biomass"],
+                 biomass_pot_node.index + " solid biomass",
                  carrier="solid biomass")
 
     network.madd("Store",
@@ -1419,12 +1428,13 @@ def add_biomass(network):
                  e_initial=biomass_potentials.loc[cts, "biogas"].sum())
 
     network.madd("Store",
-                 ["EU solid biomass"],
-                 bus="EU solid biomass",
+                 biomass_pot_node.index + " solid biomass",
+                 bus=biomass_pot_node.index + " solid biomass",
                  carrier="solid biomass",
-                 e_nom=biomass_potentials.loc[cts, "solid biomass"].sum(),
+                 e_nom=biomass_pot_node["solid biomass"].values,
+#                 e_nom_extendable = True,
                  marginal_cost=costs.at['solid biomass', 'fuel'],
-                 e_initial=biomass_potentials.loc[cts, "solid biomass"].sum())
+                 e_initial=biomass_pot_node["solid biomass"].values)
 
     network.madd("Link",
                  ["biogas to gas"],
@@ -1435,15 +1445,49 @@ def add_biomass(network):
                  efficiency2=-costs.at['gas', 'CO2 intensity'],
                  p_nom_extendable=True)
 
+    # add biomass transport
+    biomass_transport = pd.DataFrame(columns=["bus0", "bus1", "length"])
+    prefix = "Biomass transport "
+    connector = " -> "
+    attrs = ["bus0", "bus1", "length"]
 
-    #AC buses with district heating
+    candidates = pd.concat([n.lines[attrs], n.links.loc[n.links.carrier == "DC", attrs]])
+
+    positive_order = candidates.bus0 < candidates.bus1
+    candidates_p = candidates[positive_order]
+    candidates_n = (candidates[~ positive_order]
+                    .rename(columns={"bus0": "bus1", "bus1": "bus0"}))
+    candidates = pd.concat((candidates_p, candidates_n), sort=False)
+    
+    biomass_transport = candidates.groupby(["bus0", "bus1"], as_index=False).mean()
+    biomass_transport.rename(index=lambda x: 
+                             prefix + biomass_transport.at[x, "bus0"]
+                             + connector + biomass_transport.at[x, "bus1"],
+                             inplace=True)
+    # costs
+    bus0_costs = biomass_transport.bus0.apply(lambda x: transport_costs.loc[x[:2]])
+    bus1_costs = biomass_transport.bus1.apply(lambda x: transport_costs.loc[x[:2]])
+    biomass_transport["costs"] =  pd.concat([bus0_costs, bus1_costs], axis=1).mean(axis=1)
+#    
+    network.madd("Link",
+                 biomass_transport.index,
+                 bus0=biomass_transport.bus0 + " solid biomass",
+                 bus1=biomass_transport.bus1 + " solid biomass",
+                 p_min_pu=-1,
+                 p_nom_extendable=True,
+                 length=biomass_transport.length.values,
+                 capital_cost=biomass_transport.costs*biomass_transport.length.values,
+                 carrier="solid biomass transport")
+
+
+    # AC buses with district heating
     urban_central = n.buses.index[n.buses.carrier == "urban central heat"]
     if not urban_central.empty and options["chp"]:
         urban_central = urban_central.str[:-len(" urban central heat")]
 
         network.madd("Link",
                      urban_central + " urban central solid biomass CHP electric",
-                     bus0="EU solid biomass",
+                     bus0=urban_central + " solid biomass",
                      bus1=urban_central,
                      carrier="urban central solid biomass CHP electric",
                      p_nom_extendable=True,
@@ -1458,7 +1502,7 @@ def add_biomass(network):
 
         network.madd("Link",
                      urban_central + " urban central solid biomass CHP heat",
-                     bus0="EU solid biomass",
+                     bus0=urban_central + " solid biomass",
                      bus1=urban_central + " urban central heat",
                      carrier="urban central solid biomass CHP heat",
                      p_nom_extendable=True,
@@ -1468,7 +1512,7 @@ def add_biomass(network):
 
         network.madd("Link",
                      urban_central + " urban central solid biomass CHP CCS electric",
-                     bus0="EU solid biomass",
+                     bus0=urban_central + " solid biomass",
                      bus1=urban_central,
                      bus2="co2 atmosphere",
                      bus3="co2 stored",
@@ -1486,7 +1530,7 @@ def add_biomass(network):
 
         network.madd("Link",
                      urban_central + " urban central solid biomass CHP CCS heat",
-                     bus0="EU solid biomass",
+                     bus0=urban_central + " solid biomass",
                      bus1=urban_central + " urban central heat",
                      bus2="co2 atmosphere",
                      bus3="co2 stored",
@@ -1786,7 +1830,8 @@ if __name__ == "__main__":
                 energy_totals_name='data/energy_totals.csv',
                 co2_totals_name='data/co2_totals.csv',
                 transport_name='data/transport_data.csv',
-                biomass_potentials='data/biomass_potentials.csv',
+                biomass_potentials='data/biomass/biomass_potentials.csv',
+                biomass_transport = 'data/biomass/biomass_transport_costs.csv',
                 heat_profile="data/heat_load_profile_BDEW.csv",
                 costs="data/costs/",
                 costs_old="data/costs_old.csv",
@@ -1854,7 +1899,7 @@ if __name__ == "__main__":
     remove_elec_base_techs(n)
 
     n.loads["carrier"] = "electricity"
-    
+     
     if not options["costs_old"]:
         update_elec_costs(n, costs)   # update old pypsa-eur costs with new costs
     
