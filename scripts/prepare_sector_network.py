@@ -1184,21 +1184,21 @@ def add_heat(network):
                                                'efficiency'] * costs.at[name_type + ' resistive heater',
                                                                         'fixed'],
                          p_nom_extendable=True)
-
-            network.madd("Link",
-                         nodes[name] + " " + name + " gas boiler",
-                         p_nom_extendable=True,
-                         bus0=["EU gas"] * len(nodes[name]),
-                         bus1=nodes[name] + " " + name + " heat",
-                         bus2="co2 atmosphere",
-                         carrier=name + " gas boiler",
-                         efficiency=costs.at[name_type + ' gas boiler',
-                                             'efficiency'],
-                         efficiency2=costs.at['gas',
-                                              'CO2 intensity'],
-                         capital_cost=costs.at[name_type + ' gas boiler',
-                                               'efficiency'] * costs.at[name_type + ' gas boiler',
-                                                                        'fixed'])
+            if name == "urban central":
+                network.madd("Link",
+                             nodes[name] + " " + name + " gas boiler",
+                             p_nom_extendable=True,
+                             bus0=["EU gas"] * len(nodes[name]),
+                             bus1=nodes[name] + " " + name + " heat",
+                             bus2="co2 atmosphere",
+                             carrier=name + " gas boiler",
+                             efficiency=costs.at[name_type + ' gas boiler',
+                                                 'efficiency'],
+                             efficiency2=costs.at['gas',
+                                                  'CO2 intensity'],
+                             capital_cost=costs.at[name_type + ' gas boiler',
+                                                   'efficiency'] * costs.at[name_type + ' gas boiler',
+                                                                            'fixed'])
 
         if options["solar_thermal"]:
 
