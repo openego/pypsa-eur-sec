@@ -42,6 +42,12 @@ battery storage,efficiency,1.0,per unit,Technology Data for Energy Plants for El
 battery storage,efficiency-heat,0.0,per unit,Technology Data for Energy Plants for Electricity and District heating generation
 battery storage,investment,94.0,EUR/kWh,Technology Data for Energy Plants for Electricity and District heating generation
 battery storage,lifetime,30.0,years,Technology Data for Energy Plants for Electricity and District heating generation
+biogas upgrading,FOM,2.5,%/year,Technology Data for Energy Plants for Electricity and District heating generation
+biogas upgrading,VOM,3.433247241725176,EUR/MWh,Technology Data for Energy Plants for Electricity and District heating generation
+biogas upgrading,efficiency,1.0,per unit,Technology Data for Energy Plants for Electricity and District heating generation
+biogas upgrading,efficiency-heat,0.0,per unit,Technology Data for Energy Plants for Electricity and District heating generation
+biogas upgrading,investment,362.0,EUR/kWel,Technology Data for Energy Plants for Electricity and District heating generation
+biogas upgrading,lifetime,15.0,years,Technology Data for Energy Plants for Electricity and District heating generation
 biomass CHP,FOM,3.524,%/year,Technology Data for Energy Plants for Electricity and District heating generation
 biomass CHP,VOM,1.9,EUR/MWh,Technology Data for Energy Plants for Electricity and District heating generation
 biomass CHP,efficiency,1.0,per unit,Technology Data for Energy Plants for Electricity and District heating generation
@@ -157,13 +163,13 @@ decentral water tank storage,investment,18.37606837606838,EUR/kWh,IWES Interakti
 decentral water tank storage,lifetime,20.0,years,HP
 electrolysis,FOM,5.0,%/year,Technology Data for Energy Plants for Electricity and District heating generation
 electrolysis,VOM,0.0,EUR/MWh,Technology Data for Energy Plants for Electricity and District heating generation
-electrolysis,efficiency,0.8,per unit,budischak2013
+electrolysis,efficiency,0.6755,per unit,Technology Data for Energy Plants for Electricity and District heating generation
 electrolysis,efficiency-heat,0.0,per unit,Technology Data for Energy Plants for Electricity and District heating generation
 electrolysis,investment,525.0,EUR/kWel,Technology Data for Energy Plants for Electricity and District heating generation
 electrolysis,lifetime,25.0,years,Technology Data for Energy Plants for Electricity and District heating generation
 fuel cell,FOM,5.0,%/year,Technology Data for Energy Plants for Electricity and District heating generation
 fuel cell,VOM,0.0,EUR/MWh,Technology Data for Energy Plants for Electricity and District heating generation
-fuel cell,efficiency,0.58,per unit,budischak2013
+fuel cell,efficiency,0.5,per unit,Technology Data for Energy Plants for Electricity and District heating generation
 fuel cell,efficiency-heat,0.0,per unit,Technology Data for Energy Plants for Electricity and District heating generation
 fuel cell,investment,950.0000000000001,EUR/kWel,Technology Data for Energy Plants for Electricity and District heating generation
 fuel cell,lifetime,10.0,years,Technology Data for Energy Plants for Electricity and District heating generation

@@ -110,7 +110,33 @@ def attach_wind_costs(n, costs):
             
             return n
             
-            
+
+def create_network_topology(n, prefix):
+    """
+    create a network topology as the electric network,
+    returns a pandas dataframe with bus0, bus1 and length
+    """
+
+    topo = pd.DataFrame(columns=["bus0", "bus1", "length"])
+    connector = " -> "
+    attrs = ["bus0", "bus1", "length"]
+
+    candidates = pd.concat([n.lines[attrs],
+                            n.links.loc[n.links.carrier == "DC", attrs]])
+
+    positive_order = candidates.bus0 < candidates.bus1
+    candidates_p = candidates[positive_order]
+    candidates_n = (candidates[~ positive_order]
+                    .rename(columns={"bus0": "bus1", "bus1": "bus0"}))
+    candidates = pd.concat((candidates_p, candidates_n), sort=False)
+ 
+    topo = candidates.groupby(["bus0", "bus1"], as_index=False).mean()
+    topo.rename(index=lambda x: prefix + topo.at[x, "bus0"]
+                + connector + topo.at[x, "bus1"],
+                inplace=True)
+    return topo
+
+ 
 def remove_elec_base_techs(n):
     """remove conventional generators (e.g. OCGT) and storage units (e.g. batteries and H2)
     from base electricity-only network, since they're added here differently using links
@@ -828,21 +854,8 @@ def add_storage(network):
                  carrier="H2 Store",
                  capital_cost=h2_capital_cost)
 
-    h2_links = pd.DataFrame(columns=["bus0","bus1","length"])
-    prefix = "H2 pipeline "
-    connector = " -> "
-    attrs = ["bus0", "bus1", "length"]
+    h2_links = create_network_topology(n, "H2 pipeline ")
 
-    candidates = pd.concat([n.lines[attrs], n.links.loc[n.links.carrier == "DC", attrs]])
- 
-    positive_order = candidates.bus0 < candidates.bus1
-    candidates_p = candidates[positive_order]
-    candidates_n = candidates[~ positive_order].rename(columns={"bus0":"bus1", "bus1":"bus0"})
-    candidates = pd.concat((candidates_p, candidates_n), sort=False)
-    
-    h2_links = candidates.groupby(["bus0", "bus1"], as_index=False).mean()
-    h2_links.rename(index=lambda x: prefix+h2_links.at[x,"bus0"]+connector+h2_links.at[x,"bus1"], inplace=True)
-    
     #TODO Add efficiency losses
     network.madd("Link",
                  h2_links.index,
@@ -1374,7 +1387,7 @@ def add_heat(network):
                                          carrier="retrofitting",
                                          p_nom_extendable=True,
                                          p_nom_max=(1 - dE_diff[strength]) * space_peak_c,
-                                         dE=dE[strength],
+                                         dE=dE_diff[strength],
                                          p_max_pu=space_pu_c,
                                          p_min_pu=space_pu_c,
                                          country=ct,
@@ -1443,27 +1456,13 @@ def add_biomass(network):
                  bus2="co2 atmosphere",
                  carrier="biogas to gas",
                  efficiency2=-costs.at['gas', 'CO2 intensity'],
+                 capital_cost=costs.loc["biogas upgrading", "fixed"],
+                 marginal_cost=costs.loc["biogas upgrading", "VOM"],
                  p_nom_extendable=True)
 
     # add biomass transport
-    biomass_transport = pd.DataFrame(columns=["bus0", "bus1", "length"])
-    prefix = "Biomass transport "
-    connector = " -> "
-    attrs = ["bus0", "bus1", "length"]
+    biomass_transport = create_network_topology(n, "Biomass transport ")
 
-    candidates = pd.concat([n.lines[attrs], n.links.loc[n.links.carrier == "DC", attrs]])
-
-    positive_order = candidates.bus0 < candidates.bus1
-    candidates_p = candidates[positive_order]
-    candidates_n = (candidates[~ positive_order]
-                    .rename(columns={"bus0": "bus1", "bus1": "bus0"}))
-    candidates = pd.concat((candidates_p, candidates_n), sort=False)
-    
-    biomass_transport = candidates.groupby(["bus0", "bus1"], as_index=False).mean()
-    biomass_transport.rename(index=lambda x: 
-                             prefix + biomass_transport.at[x, "bus0"]
-                             + connector + biomass_transport.at[x, "bus1"],
-                             inplace=True)
     # costs
     bus0_costs = biomass_transport.bus0.apply(lambda x: transport_costs.loc[x[:2]])
     bus1_costs = biomass_transport.bus1.apply(lambda x: transport_costs.loc[x[:2]])
