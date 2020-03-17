@@ -1462,6 +1462,14 @@ def add_biomass(network):
 
     # add biomass transport
     biomass_transport = create_network_topology(n, "Biomass transport ")
+    # make transport in both directions
+    df = biomass_transport.copy()
+    df["bus1"] = biomass_transport.bus0 
+    df["bus0"] = biomass_transport.bus1 
+    df.rename(index=lambda x: "Biomass transport " + df.at[x, "bus0"]
+            + " -> " + df.at[x, "bus1"],
+            inplace=True)
+    biomass_transport = pd.concat([biomass_transport, df])
 
     # costs
     bus0_costs = biomass_transport.bus0.apply(lambda x: transport_costs.loc[x[:2]])
@@ -1472,10 +1480,10 @@ def add_biomass(network):
                  biomass_transport.index,
                  bus0=biomass_transport.bus0 + " solid biomass",
                  bus1=biomass_transport.bus1 + " solid biomass",
-                 p_min_pu=-1,
+#                 p_min_pu=-1,
                  p_nom_extendable=True,
                  length=biomass_transport.length.values,
-                 capital_cost=biomass_transport.costs*biomass_transport.length.values,
+                 marginal_cost=biomass_transport.costs*biomass_transport.length.values,
                  carrier="solid biomass transport")
 
 

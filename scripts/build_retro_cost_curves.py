@@ -35,9 +35,9 @@ tax_weighting = False   # weight costs depending on taxes in countries
 construction_index = False   # weight costs depending on costruction_index
 plot = False
 
-l_strength = ["0.04", "0.08"]  # additional insulation thickness
+l_strength = ["0.04", "0.08", "0.1"]  # additional insulation thickness
 # strenght of relative retrofitting depending on the component
-l_weight = pd.DataFrame({"weight": [1, 1, 1, 1]},  #[4,2,2,0.5]
+l_weight = pd.DataFrame({"weight": [1, 1, 1, 1]},  # [4,2,2,0.5]
                         index=["Roof", "Walls", "Floor", "Windows"])
 
 # mapping missing countries by neighbours
