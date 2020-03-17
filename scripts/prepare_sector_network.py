@@ -1116,6 +1116,12 @@ def add_heat(network):
             heat_load = heat_demand.groupby(level=1, axis=1).sum()[nodes[name]].multiply(
                                     factor * (1 + options['district_heating_loss']))
             
+        # distribute heat demand over one year
+        if options["base_load"]:
+            print("heat demand is assumed as base load")
+            base_load = heat_load.sum()/len(heat_load)
+            heat_load = heat_load.apply(lambda x: base_load.loc[x.index], axis=1)
+
         network.madd("Load",
                      nodes[name],
                      suffix=" " + name + " heat",
