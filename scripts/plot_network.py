@@ -1,7 +1,7 @@
 
 import pandas as pd
 
-#allow plotting without Xwindows
+# allow plotting without Xwindows
 import matplotlib
 matplotlib.use('Agg')
 
@@ -35,7 +35,7 @@ override_component_attrs["Link"].loc["p3"] = ["series","MW",0.,"3rd bus output",
 override_component_attrs["StorageUnit"].loc["p_dispatch"] = ["series","MW",0.,"Storage discharging.","Output"]
 override_component_attrs["StorageUnit"].loc["p_store"] = ["series","MW",0.,"Storage charging.","Output"]
 
-
+# %%
 
 def rename_techs_tyndp(tech):
     tech = rename_techs(tech)
@@ -363,7 +363,6 @@ def plot_series(carrier="AC"):
     n = pypsa.Network(snakemake.input.network,
                       override_component_attrs=override_component_attrs)
 
-
     assign_location(n)
 
     assign_carriers(n)
@@ -373,7 +372,8 @@ def plot_series(carrier="AC"):
     supply = pd.DataFrame(index=n.snapshots)
     for c in n.iterate_components(n.branch_components):
         for i in range(2):
-            supply = pd.concat((supply,(-1)*c.pnl["p"+str(i)].loc[:,c.df.index[c.df["bus" + str(i)].isin(buses)]].groupby(c.df.carrier,axis=1).sum()),axis=1)
+            supply = pd.concat((supply, (-1) * 
+                                c.pnl["p"+str(i)].loc[:,c.df.index[c.df["bus" + str(i)].isin(buses)]].groupby(c.df.carrier,axis=1).sum()),axis=1)
 
     for c in n.iterate_components(n.one_port_components):
         comps = c.df.index[c.df.bus.isin(buses)]
@@ -421,20 +421,43 @@ def plot_series(carrier="AC"):
 
     supply = supply/1e3
 
-    supply.rename(columns={"electricity" : "electric demand",
-                           "heat" : "heat demand"},
+    supply.rename(columns={"electricity": "electric demand",
+                           "heat": "heat demand"},
                   inplace=True)
 
-    preferred_order = pd.Index(["electric demand","transmission lines","hydroelectricity","hydro reservoir","run of river","pumped hydro storage","CHP","onshore wind","offshore wind","solar PV","solar thermal","building retrofitting","ground heat pump","air heat pump","resistive heater","OCGT","gas boiler","gas","natural gas","methanation","hydrogen storage","battery storage","hot water storage"])
+    preferred_order = pd.Index(["electric demand",
+                                "transmission lines",
+                                "hydroelectricity",
+                                "hydro reservoir",
+                                "run of river",
+                                "pumped hydro storage",
+                                "CHP",
+                                "onshore wind",
+                                "offshore wind",
+                                "solar PV",
+                                "solar thermal",
+                                "building retrofitting",
+                                "ground heat pump",
+                                "air heat pump",
+                                "resistive heater",
+                                "OCGT",
+                                "gas boiler",
+                                "gas",
+                                "natural gas",
+                                "methanation",
+                                "hydrogen storage",
+                                "battery storage",
+                                "hot water storage"])
 
-    new_columns = (preferred_order&supply.columns).append(supply.columns.difference(preferred_order))
+    new_columns = ((preferred_order & supply.columns)
+                   .append(supply.columns.difference(preferred_order)))
 
+    (supply.loc[start:stop, new_columns]
+     .plot(ax=ax, kind="area", stacked=True, linewidth=0.,
+           color=[snakemake.config['plotting']['tech_colors'][i.replace(suffix, "")]
+                  for i in new_columns]))
 
-    supply.loc[start:stop,new_columns].plot(ax=ax,kind="area",stacked=True,linewidth=0.,color=[snakemake.config['plotting']['tech_colors'][i.replace(suffix,"")] for i in new_columns])
-
-
-
-    handles,labels = ax.get_legend_handles_labels()
+    handles, labels = ax.get_legend_handles_labels()
 
     handles.reverse()
     labels.reverse()
@@ -442,24 +465,21 @@ def plot_series(carrier="AC"):
     new_handles = []
     new_labels = []
 
-    for i,item in enumerate(labels):
+    for i, item in enumerate(labels):
         if "charging" not in item:
             new_handles.append(handles[i])
             new_labels.append(labels[i])
 
-    ax.legend(new_handles,new_labels,ncol=3,loc="upper left")
-
-    ax.set_xlim([start,stop])
-
-    ax.set_ylim([-1300,1900])
-
+    ax.legend(new_handles, new_labels, ncol=3, loc="upper left")
+    ax.set_xlim([start, stop])
+    ax.set_ylim([-1300, 1900])
     ax.grid(True)
-
     ax.set_ylabel("Power [GW]")
-
     fig.tight_layout()
 
-    fig.savefig("{}/series-{}-{}-{}.pdf".format(snakemake.config['summary_dir'],carrier,start,stop),transparent=True)
+    fig.savefig("{}/series-{}-{}-{}.pdf".format(
+            snakemake.config['summary_dir'], carrier, start, stop),
+            transparent=True)
 
 # %%
 if __name__ == "__main__":
@@ -472,10 +492,12 @@ if __name__ == "__main__":
             snakemake.config = yaml.load(f)
         snakemake.input = Dict()
         snakemake.output = Dict(
-                map=snakemake.config['results_dir'] + snakemake.config['run'] + "/maps/elec_s_38_lv1.0__Co2L0p0-24H-T-H-B-I-costs-all.pdf",
-	            today=snakemake.config['results_dir'] +snakemake.config['run'] + "/maps/elec_s_38_lv1.0__Co2L0p0-24H-T-H-B-I-today.pdf")
+                map=(snakemake.config['results_dir'] + snakemake.config['run']
+                     + "/maps/elec_s_38_lv1.0__Co2L0p0-H-T-H-B-I-costs-all.pdf"),
+	            today=(snakemake.config['results_dir'] +snakemake.config['run']
+                       + "/maps/elec_s_38_lv1.0__Co2L0p0-24H-T-H-B-I-today.pdf"))
         snakemake.input.scenario = "lv1.0"  #lv1.0, lv1.25, lvopt
-        snakemake.config["run"] = "190503-es2050-lv"
+        snakemake.config["run"] = "bio_costs"
         snakemake.input.network = "{}{}/postnetworks/elec_s_181_{}__Co2L0-3H-T-H-B-I-solar3.nc".format(snakemake.config['results_dir'],
                                                                                                        snakemake.config['run'],
                                                                                                        snakemake.input.scenario)

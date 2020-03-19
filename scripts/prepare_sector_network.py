@@ -1490,6 +1490,7 @@ def add_biomass(network):
                  p_nom_extendable=True,
                  length=biomass_transport.length.values,
                  marginal_cost=biomass_transport.costs*biomass_transport.length.values,
+                 capital_cost=1,
                  carrier="solid biomass transport")
 
 
