@@ -219,13 +219,13 @@ for ct in map_for_missings.keys():
 # weights costs after construction index
 if construction_index:
     for ct in list(map_for_missings.keys() - cost_w.index):
-        cost_w.loc[ct] = cost_w.loc[map_for_missings[ct]].mean()
+        cost_w.loc[ct] = cost_w.reindex(index=map_for_missings[ct]).mean()
     res.cost = res.cost.apply(lambda x: x*cost_w[x.index.levels[0]])
 
 # weights cost depending on country taxes
 if tax_weighting:
     for ct in list(map_for_missings.keys() - tax_w.index):
-        tax_w[ct] = tax_w.loc[map_for_missings[ct]].mean()
+        tax_w[ct] = tax_w.reindex(index=map_for_missings[ct]).mean()
     res.cost = res.cost.apply(lambda x: x*tax_w[x.index.levels[0]])
 
 # get the total cost-energy-savings weight by sector area

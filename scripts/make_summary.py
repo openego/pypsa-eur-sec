@@ -38,7 +38,7 @@ override_component_attrs["StorageUnit"].loc["p_dispatch"] = ["series","MW",0.,"S
 override_component_attrs["StorageUnit"].loc["p_store"] = ["series","MW",0.,"Storage charging.","Output"]
 
 
-# %%
+
 
 def assign_carriers(n):
     if "carrier" not in n.lines:
@@ -574,12 +574,12 @@ if __name__ == "__main__":
 
         #overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "no_gas"
-        snakemake.config["scenario"]["lv"] = [1.0]
+        snakemake.config["run"] = "bio_costs"
+        snakemake.config["scenario"]["lv"] = [1.0, 1.125, 1.5, 1.75, 2.0, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
 
                                                        "dist_retro",
-                                                       "dist_retro_steps",
+#                                                       "dist_retro_steps",
 #                                                       "dist_retro_tes",
                                             #           "-B_01dist_retro",
                                             #           "-B_02dist_retro",
@@ -615,7 +615,7 @@ if __name__ == "__main__":
             snakemake.output[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=snakemake.config['run'],item=item)
 
     networks_dict = {(cluster,lv,opt+sector_opt) :
-                     snakemake.config['results_dir'] + snakemake.config['run'] + '/postnetworks/elec_s_38_lv1.0__Co2L0-3H-T-H-B_{}.nc'.format(sector_opt)\
+                     snakemake.config['results_dir'] + snakemake.config['run'] + '/postnetworks/elec_s_38_lv{}__Co2L0-3H-T-H-B.nc'.format(lv)\
                      .format(cluster=cluster,
                              opt=opt,
                              lv=lv,
