@@ -173,20 +173,20 @@ rule build_industrial_demand:
     script: 'scripts/build_industrial_demand.py'
 
 
-if config['sector'].get('retrofitting', True):
-    rule build_retro_cost_curves:
-        input:
-            building_stock="data/retro/data_building_stock.csv",
-            tax_w="data/retro/electricity_taxes_eu.csv",
-            construction_index="data/retro/comparative_level_investment.csv",
-            average_surface="data/retro/average_surface_components.csv",
-            floor_area_missing="data/retro/floor_area_missing.csv",
-            clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
-            cost_germany="data/retro/retro_cost_germany.csv"
-        output:
-            retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
-            floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv"
-        script: "scripts/build_retro_cost_curves.py"
+
+rule build_retro_cost_curves:
+    input:
+        building_stock="data/retro/data_building_stock.csv",
+        tax_w="data/retro/electricity_taxes_eu.csv",
+        construction_index="data/retro/comparative_level_investment.csv",
+        average_surface="data/retro/average_surface_components.csv",
+        floor_area_missing="data/retro/floor_area_missing.csv",
+        clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
+        cost_germany="data/retro/retro_cost_germany.csv"
+    output:
+        retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
+        floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv"
+    script: "scripts/build_retro_cost_curves.py"
 
 
 rule prepare_sector_network:
@@ -200,9 +200,6 @@ rule prepare_sector_network:
         timezone_mappings='data/timezone_mappings.csv',
         heat_profile="data/heat_load_profile_BDEW.csv",
         costs="data/costs/",
-	costs_old="data/costs_old.csv",
-	retro_cost_energy = "resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
-        floor_area = "resources/floor_area_{network}_s{simpl}_{clusters}.csv",
         clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
 	    traffic_data = "data/emobility/",
 	    h2_cavern = "data/hydrogen_salt_cavern_potentials.csv",
@@ -224,7 +221,11 @@ rule prepare_sector_network:
         cop_air_urban="resources/cop_air_urban_{network}_s{simpl}_{clusters}.nc",
         solar_thermal_total="resources/solar_thermal_total_{network}_s{simpl}_{clusters}.nc",
         solar_thermal_urban="resources/solar_thermal_urban_{network}_s{simpl}_{clusters}.nc",
-        solar_thermal_rural="resources/solar_thermal_rural_{network}_s{simpl}_{clusters}.nc"
+        solar_thermal_rural="resources/solar_thermal_rural_{network}_s{simpl}_{clusters}.nc",
+        if config['sector'].get('retrofitting', True):
+        	costs_old="data/costs_old.csv",
+        	retro_cost_energy = "resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
+            floor_area = "resources/floor_area_{network}_s{simpl}_{clusters}.csv",
     output:
         network = config['results_dir']  +  config['run'] + '/prenetworks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{sector_opts}.nc' #,
 	# costs = config['results_dir']  +  config['run'] + '/costs/assumed_costs_{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{sector_opts}.csv'
