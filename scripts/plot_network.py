@@ -37,8 +37,7 @@ override_component_attrs["StorageUnit"].loc["p_store"] = [
     "series", "MW", 0., "Storage charging.", "Output"]
 
 # %%
-
-
+# ----------------- PLOT HELPERS ---------------------------------------------
 def rename_techs_tyndp(tech):
     tech = rename_techs(tech)
     if "heat pump" in tech or "resistive heater" in tech:
@@ -103,19 +102,12 @@ def assign_location(n):
             c.df.loc[names, 'location'] = names.str[:i]
 
 
-def plot_map(
-        components=[
-            "links",
-            "stores",
-            "storage_units",
-            "generators"],
-        bus_size_factor=1.7e10):
-
-    n = pypsa.Network(snakemake.input.network,
-                      override_component_attrs=override_component_attrs)
-
+# ----------------- PLOT FUNCTIONS --------------------------------------------
+def plot_map(network, components=["links", "stores", "storage_units", "generators"],
+             bus_size_factor=1.7e10):
+    
+    n = network.copy()
     assign_location(n)
-
     # Drop non-electric buses so they don't clutter the plot
     n.buses.drop(n.buses.index[n.buses.carrier != "AC"], inplace=True)
 
@@ -123,50 +115,41 @@ def plot_map(
 
     for comp in components:
         print(comp)
-        getattr(n, comp)["nice_group"] = getattr(
-            n, comp).carrier.map(rename_techs_tyndp)
+        df_c = getattr(n, comp)
+        df_c["nice_group"] = df_c.carrier.map(rename_techs_tyndp)
 
         attr = "e_nom_opt" if comp == "stores" else "p_nom_opt"
-
-        df_c = getattr(n, comp)
-        costs = pd.concat([costs, (df_c.capital_cost *
-                                   df_c[attr])
-                           .groupby(
-            [df_c.location, df_c.nice_group]).sum()
-            .unstack().fillna(0.)],
-            axis=1)
+        
+        costs_c = ((df_c.capital_cost * df_c[attr])
+                   .groupby([df_c.location, df_c.nice_group]).sum()
+                   .unstack().fillna(0.))
+        costs = pd.concat([costs, costs_c], axis=1)
 
         print(comp, costs)
     costs = costs.groupby(costs.columns, axis=1).sum()
 
     costs.drop(list(costs.columns[(costs == 0.).all()]), axis=1, inplace=True)
 
-    new_columns = (
-        preferred_order & costs.columns).append(
-        costs.columns.difference(preferred_order))
-
+    new_columns = ((preferred_order & costs.columns)
+                   .append(costs.columns.difference(preferred_order)))
     costs = costs[new_columns]
 
-    # print(costs)
-    # print(costs.sum())
-
     costs = costs.stack()  # .sort_index()
-
-    # print(costs)
-# %%
-    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
-
-    fig.set_size_inches(7, 6)
-
-    linewidth_factor = 2e3
-    ac_color = "gray"
-    dc_color = "m"
 
     # hack because impossible to drop buses...
     n.buses.loc["EU gas", ["x", "y"]] = n.buses.loc["DE0 0", ["x", "y"]]
 
     n.links.drop(n.links.index[(n.links.carrier != "DC") & (
         n.links.carrier != "B2B")], inplace=True)
+
+    # drop non-bus
+    to_drop = costs.index.levels[0] ^ n.buses.index
+    if len(to_drop) != 0:
+        print("dropping non-buses", to_drop)
+        costs.drop(to_drop, level=0, inplace=True, axis=0)
+
+    # make sure they are removed from index
+    costs.index = pd.MultiIndex.from_tuples(costs.index.values)
 
     if snakemake.wildcards["lv"] == "1.0":
         # should be zero
@@ -190,16 +173,13 @@ def plot_map(
 
     # PDF has minimum width, so set these to zero
     line_threshold = 500.
-
+    linewidth_factor = 2e4
+    ac_color = "gray"
+    dc_color = "m"
     line_widths_exp[line_widths_exp < line_threshold] = 0.
 
-    # drop non-bus
-    to_drop = costs.index.levels[0] ^ n.buses.index
-    print("dropping non-buses", to_drop)
-    costs.drop(to_drop, level=0, inplace=True, axis=0)
-
-    # make sure they are removed from index
-    costs.index = pd.MultiIndex.from_tuples(costs.index.values)
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
+    fig.set_size_inches(7, 6)
 
     n.plot(bus_sizes=costs / bus_size_factor,
            bus_colors=snakemake.config['plotting']['tech_colors'],
@@ -225,25 +205,23 @@ def plot_map(
         handles.append(plt.Line2D([0], [0], color=ac_color,
                                   linewidth=s * 1e3 / linewidth_factor))
         labels.append("{} GW".format(s))
-    l1 = l1_1 = ax.legend(handles, labels,
-                          loc="upper left", bbox_to_anchor=(0.30, 1.01),
-                          framealpha=1,
-                          labelspacing=0.8, handletextpad=1.5,
-                          title='Transmission reinforcement')
+    l1_1 = ax.legend(handles, labels,
+                     loc="upper left", bbox_to_anchor=(0.30, 1.01),
+                     framealpha=1,
+                     labelspacing=0.8, handletextpad=1.5,
+                     title='Transmission reinforcement')
     ax.add_artist(l1_1)
-# %%
+
     #ax.set_title("Scenario {} with {} transmission".format(snakemake.config['plotting']['scenario_names'][flex],"optimal" if line_limit == "opt" else "no"))
 
     fig.tight_layout()
 
-    fig.savefig(snakemake.output.map, transparent=True)
+    fig.savefig(snakemake.output.map + "_costs.pdf", transparent=True)
 
 
-def plot_h2_map():
-
-    n = pypsa.Network(snakemake.input.network,
-                      override_component_attrs=override_component_attrs)
-
+def plot_h2_map(network):
+    
+    n = network.copy()
     if "H2 pipeline" not in n.links.carrier.unique():
         return
 
@@ -311,29 +289,22 @@ def plot_h2_map():
         handles.append(plt.Line2D([0], [0], color=link_color,
                                   linewidth=s * 1e3 / linewidth_factor))
         labels.append("{} GW".format(s))
-    l1 = l1_1 = ax.legend(handles, labels,
-                          loc="upper left", bbox_to_anchor=(0.30, 1.01),
-                          framealpha=1,
-                          labelspacing=0.8, handletextpad=1.5,
-                          title='H2 pipeline capacity')
+    l1_1 = ax.legend(handles, labels,
+                     loc="upper left", bbox_to_anchor=(0.30, 1.01),
+                     framealpha=1,
+                     labelspacing=0.8, handletextpad=1.5,
+                     title='H2 pipeline capacity')
     ax.add_artist(l1_1)
 
     #ax.set_title("Scenario {} with {} transmission".format(snakemake.config['plotting']['scenario_names'][flex],"optimal" if line_limit == "opt" else "no"))
 
-    fig.tight_layout()
-
-    fig.savefig(
-        snakemake.output.map.replace(
-            "-costs-all",
-            "-h2_network"),
-        transparent=True)
+    fig.savefig(snakemake.output.map + "-h2_network.pdf", transparent=True,
+                bbox_inches="tight")
 
 
-def plot_map_without():
+def plot_map_without(network):
 
-    n = pypsa.Network(snakemake.input.network,
-                      override_component_attrs=override_component_attrs)
-
+    n = network.copy()
     assign_location(n)
 
     # Drop non-electric buses so they don't clutter the plot
@@ -353,7 +324,7 @@ def plot_map_without():
     n.links.drop(n.links.index[(n.links.carrier != "DC") & (
         n.links.carrier != "B2B")], inplace=True)
 
-    if snakemake.wildcards.lv == "1.0":
+    if snakemake.wildcards["lv"] == "1.0":
         line_widths_exp = pd.concat(
             dict(
                 Line=(
@@ -395,21 +366,16 @@ def plot_map_without():
 
     # ax.set_title("Scenario {} with {} transmission".format(snakemake.config['plotting']['scenario_names'][flex],"optimal" if line_limit == "opt" else "no"))
 
-    fig.tight_layout()
-
-    fig.savefig(snakemake.output.today, transparent=True)
+    fig.savefig(snakemake.output.today, transparent=True, bbox_inches="tight")
 
 
-def plot_series(carrier="AC"):
+def plot_series(network, carrier="AC"):
 
-    n = pypsa.Network(snakemake.input.network,
-                      override_component_attrs=override_component_attrs)
-
+    n = network.copy()
     assign_location(n)
-
     assign_carriers(n)
 
-    buses = n.buses.index[n.buses.carrier == carrier]
+    buses = n.buses.index[n.buses.carrier.str.contains(carrier)]
 
     supply = pd.DataFrame(index=n.snapshots)
     for c in n.iterate_components(n.branch_components):
@@ -444,23 +410,21 @@ def plot_series(carrier="AC"):
     supply = pd.concat((supply, negative_supply), axis=1)
 
     fig, ax = plt.subplots()
-
     fig.set_size_inches((8, 5))
 
     # 14-21.2 for flaute
     # 19-26.1 for flaute
 
     start = "2013-01-19"
-
     stop = "2013-01-26"
 
     threshold = 10e3
 
     to_drop = supply.columns[(abs(supply) < threshold).all()]
 
-    print("dropping", to_drop)
-
-    supply.drop(columns=to_drop, inplace=True)
+    if len(to_drop) != 0:
+        print("dropping", to_drop) 
+        supply.drop(columns=to_drop, inplace=True)
 
     supply.index.name = None
 
@@ -522,8 +486,9 @@ def plot_series(carrier="AC"):
     ax.set_ylabel("Power [GW]")
     fig.tight_layout()
 
-    fig.savefig("{}/series-{}-{}-{}.pdf".format(
-        snakemake.config['summary_dir'], carrier, start, stop),
+    fig.savefig("{}{}/graphs/series-{}-{}-{}.pdf".format(
+        snakemake.config['results_dir'], snakemake.config['run'],
+        carrier, start, stop),
         transparent=True)
 
 
@@ -535,41 +500,34 @@ if __name__ == "__main__":
         from vresutils import Dict
         import yaml
         snakemake = Dict()
-        snakemake.wildcards = {"lv": "1.0"}  # lv1.0, lv1.25, lvopt
+        snakemake.wildcards = {"lv": "opt"}  # lv1.0, lv1.25, lvopt
         with open('config.yaml') as f:
             snakemake.config = yaml.safe_load(f)
+        name = "elec_s_38_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
         snakemake.input = Dict()
         snakemake.output = Dict(
             map=(snakemake.config['results_dir'] + snakemake.config['run']
-                 + "/maps/elec_s_38_lv1.0__Co2L0p0-3H-T-H-B-I-costs-all.pdf"),
+                 + "/maps/{}".format(name)),
             today=(snakemake.config['results_dir'] + snakemake.config['run']
-                   + "/maps/elec_s_38_lv1.0__Co2L0p0-3H-T-H-B-I-today.pdf"))
-        snakemake.input.scenario = "lv" + snakemake.wildcards.lv
+                   + "/maps/{}.pdf".format(name)))
+        snakemake.input.scenario = "lv" + snakemake.wildcards["lv"]
         snakemake.config["run"] = "bio_costs"
         path = snakemake.config['results_dir'] + snakemake.config['run']
         snakemake.input.network = (path +
-                                   "/postnetworks/elec_s_38_{}__Co2L0-3H-T-H-B.nc"
-                                   .format(snakemake.input.scenario))
+                                   "/postnetworks/{}.nc"
+                                   .format(name))
         snakemake.output.network = (path +
-                                    "/maps/elec_s_38_{}__Co2L0-3H-T-H-B.pdf"
-                                    .format(snakemake.input.scenario))
+                                    "/maps/{}"
+                                    .format(name))
 
-    plot_map(
-        components=[
-            "generators",
-            "links",
-            "stores",
-            "storage_units"],
-        bus_size_factor=1.5e10)
+    n = pypsa.Network(snakemake.input.network,
+                      override_component_attrs=override_component_attrs)
 
-    plot_h2_map()
+    plot_map(n, components=["generators", "links", "stores", "storage_units"],
+             bus_size_factor=1.5e10)
 
-    plot_map_without()
+    plot_h2_map(n)
+    plot_map_without(n)
 
-    # plot_map(components=["generators"],bus_size_factor=1.7e10,suffix="generators")
-
-    # plot_map(components=["links","stores","storage_units"],bus_size_factor=4e9,suffix="rest")
-
-    # plot_series(carrier="AC")
-
-    # plot_series(carrier="heat")
+    plot_series(n, carrier="AC")
+    plot_series(n, carrier="heat")
