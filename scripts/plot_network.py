@@ -36,6 +36,7 @@ override_component_attrs["StorageUnit"].loc["p_dispatch"] = [
 override_component_attrs["StorageUnit"].loc["p_store"] = [
     "series", "MW", 0., "Storage charging.", "Output"]
 
+
 # %%
 # ----------------- PLOT HELPERS ---------------------------------------------
 def rename_techs_tyndp(tech):
@@ -105,7 +106,7 @@ def assign_location(n):
 # ----------------- PLOT FUNCTIONS --------------------------------------------
 def plot_map(network, components=["links", "stores", "storage_units", "generators"],
              bus_size_factor=1.7e10):
-    
+
     n = network.copy()
     assign_location(n)
     # Drop non-electric buses so they don't clutter the plot
@@ -119,7 +120,7 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
         df_c["nice_group"] = df_c.carrier.map(rename_techs_tyndp)
 
         attr = "e_nom_opt" if comp == "stores" else "p_nom_opt"
-        
+
         costs_c = ((df_c.capital_cost * df_c[attr])
                    .groupby([df_c.location, df_c.nice_group]).sum()
                    .unstack().fillna(0.))
@@ -212,15 +213,12 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
                      title='Transmission reinforcement')
     ax.add_artist(l1_1)
 
-    #ax.set_title("Scenario {} with {} transmission".format(snakemake.config['plotting']['scenario_names'][flex],"optimal" if line_limit == "opt" else "no"))
-
-    fig.tight_layout()
-
-    fig.savefig(snakemake.output.map + "_costs.pdf", transparent=True)
+    fig.savefig(snakemake.output.map + "_costs.pdf", transparent=True,
+                bbox_inches="tight")
 
 
 def plot_h2_map(network):
-    
+
     n = network.copy()
     if "H2 pipeline" not in n.links.carrier.unique():
         return
@@ -240,9 +238,8 @@ def plot_h2_map(network):
     elec = n.links.index[n.links.carrier == "H2 Electrolysis"]
 
     bus_sizes = pd.Series(0., index=n.buses.index)
-    bus_sizes.loc[elec.str.replace(" H2 Electrolysis",
-                                   "")] = n.links.loc[elec,
-                                                      "p_nom_opt"].values / bus_size_factor
+    bus_sizes.loc[elec.str.replace(" H2 Electrolysis", "")] = \
+                        n.links.loc[elec, "p_nom_opt"].values / bus_size_factor
 
     # make a fake MultiIndex so that area is correct for legend
     bus_sizes.index = pd.MultiIndex.from_product(
@@ -295,8 +292,6 @@ def plot_h2_map(network):
                      labelspacing=0.8, handletextpad=1.5,
                      title='H2 pipeline capacity')
     ax.add_artist(l1_1)
-
-    #ax.set_title("Scenario {} with {} transmission".format(snakemake.config['plotting']['scenario_names'][flex],"optimal" if line_limit == "opt" else "no"))
 
     fig.savefig(snakemake.output.map + "-h2_network.pdf", transparent=True,
                 bbox_inches="tight")
@@ -357,14 +352,12 @@ def plot_map_without(network):
         handles.append(plt.Line2D([0], [0], color=ac_color,
                                   linewidth=s * 1e3 / linewidth_factor))
         labels.append("{} GW".format(s))
-    l1 = l1_1 = ax.legend(handles, labels,
-                          loc="upper left", bbox_to_anchor=(0.05, 1.01),
-                          framealpha=1,
-                          labelspacing=0.8, handletextpad=1.5,
-                          title='Today\'s transmission')
+    l1_1 = ax.legend(handles, labels,
+                     loc="upper left", bbox_to_anchor=(0.05, 1.01),
+                     framealpha=1,
+                     labelspacing=0.8, handletextpad=1.5,
+                     title='Today\'s transmission')
     ax.add_artist(l1_1)
-
-    # ax.set_title("Scenario {} with {} transmission".format(snakemake.config['plotting']['scenario_names'][flex],"optimal" if line_limit == "opt" else "no"))
 
     fig.savefig(snakemake.output.today, transparent=True, bbox_inches="tight")
 
@@ -423,7 +416,7 @@ def plot_series(network, carrier="AC"):
     to_drop = supply.columns[(abs(supply) < threshold).all()]
 
     if len(to_drop) != 0:
-        print("dropping", to_drop) 
+        print("dropping", to_drop)
         supply.drop(columns=to_drop, inplace=True)
 
     supply.index.name = None
