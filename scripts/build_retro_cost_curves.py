@@ -35,20 +35,20 @@ tax_weighting = False   # weight costs depending on taxes in countries
 construction_index = False   # weight costs depending on costruction_index
 plot = False
 
-l_strength = ["0.04", "0.08", "0.1"]  # additional insulation thickness
+l_strength = ["0.04", "0.08"]  # additional insulation thickness
 # strenght of relative retrofitting depending on the component
-l_weight = pd.DataFrame({"weight": [1, 1, 1, 1]},  # [4,2,2,0.5]
+l_weight = pd.DataFrame({"weight": [4, 2, 2, 0.5]},  # [4,2,2,0.5]
                         index=["Roof", "Walls", "Floor", "Windows"])
 
 # mapping missing countries by neighbours
-map_for_missings = {"AL": ["BG", "RO", "ES"],
-                    "BA": ["HR"],
-                    "RS": ["BG", "RO", "HR", "HU"],
-                    "MK": ["BG", "ES"],
-                    "ME": ["BA", "AL", "RS", "HR"],
-                    "CH": ["SE", "DE"],
-                    "NO": ["SE"],
-                    "PL": ["DE", "CZ", "HR"]}  # TODO: missing u-values of Poland should be added from eurostat
+map_for_missings = {
+    "AL": [
+        "BG", "RO", "ES"], "BA": ["HR"], "RS": [
+            "BG", "RO", "HR", "HU"], "MK": [
+                "BG", "ES"], "ME": [
+                    "BA", "AL", "RS", "HR"], "CH": [
+                        "SE", "DE"], "NO": ["SE"], "PL": [
+                            "DE", "CZ", "HR"]}  # TODO: missing u-values of Poland should be added from eurostat
 
 # %% ************ (2) DATA ***************************************************
 
@@ -57,13 +57,17 @@ building_data = pd.read_csv(snakemake.input.building_stock,
                             usecols=list(range(13)))
 
 # standardize data
-building_data["type"].replace({'Covered area: heated  [Mm²]': 'Heated area [Mm²]',
-                               'Windows ': 'Windows', 'Walls ': 'Walls',
-                               'Roof ': 'Roof', 'Floor ': 'Floor'},
-                              inplace=True)
+building_data["type"].replace(
+    {
+        'Covered area: heated  [Mm²]': 'Heated area [Mm²]',
+        'Windows ': 'Windows',
+        'Walls ': 'Walls',
+        'Roof ': 'Roof',
+        'Floor ': 'Floor'},
+    inplace=True)
 building_data.country_code = building_data.country_code.str.upper()
-building_data["subsector"].replace({'Hotels and Restaurants': 'Hotels and restaurants'},
-                                   inplace=True)
+building_data["subsector"].replace(
+    {'Hotels and Restaurants': 'Hotels and restaurants'}, inplace=True)
 building_data["sector"].replace({'Residential sector': 'residential',
                                  'Service sector': 'services'},
                                 inplace=True)
@@ -86,11 +90,13 @@ country_iso_dic.update({'Norway': 'NO',
 # average component surface --------------------------------------------------
 # TODO average component surface from service sector
 average_surface = (pd.read_csv(snakemake.input.average_surface,
-                               nrows=3, header=1, index_col=0)
-                   .rename({'Single/two family house': 'Single family- Terraced houses',
-                            'Large apartment house': 'Multifamily houses',
-                            'Apartment house': 'Appartment blocks'},
-                           axis="index")).iloc[:, :6]
+                               nrows=3,
+                               header=1,
+                               index_col=0) .rename({'Single/two family house': 'Single family- Terraced houses',
+                                                     'Large apartment house': 'Multifamily houses',
+                                                     'Apartment house': 'Appartment blocks'},
+                                                    axis="index")).iloc[:,
+                                                                        :6]
 average_surface.columns = ["surface", "height", "Roof",
                            "Walls", "Floor", "Windows"]
 average_surface_w = average_surface[components].apply(lambda x: x / x.sum(),
@@ -116,13 +122,13 @@ pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
 pop_layout["ct"] = pop_layout.index.str[:2]
 ct_total = pop_layout.total.groupby(pop_layout["ct"]).sum()
 
-area_per_pop = area_tot.unstack().apply(lambda x: x/ct_total[x.index])
+area_per_pop = area_tot.unstack().apply(lambda x: x / ct_total[x.index])
 missing_area_ct = ct_total.index.difference(area_tot.index.levels[0])
 for ct in missing_area_ct:
     averaged_data = pd.DataFrame(
-                    area_per_pop.value.reindex(map_for_missings[ct]).mean()
-                    * ct_total[ct],
-                    columns=["value"])
+        area_per_pop.value.reindex(map_for_missings[ct]).mean()
+        * ct_total[ct],
+        columns=["value"])
     index = pd.MultiIndex.from_product([[ct], averaged_data.index.to_list()])
     averaged_data.index = index
     averaged_data["estimated"] = 1
@@ -170,23 +176,25 @@ costs = u_values[['country', 'sector', 'subsector', 'bage', 'type']]
 
 # for missing weighting of surfaces of building types assume Apartment blocks
 u_values["assumed_subsector"] = u_values.subsector
-u_values.assumed_subsector[~u_values.subsector.isin(average_surface.index)] = 'Appartment blocks'
+u_values.assumed_subsector[~u_values.subsector.isin(
+    average_surface.index)] = 'Appartment blocks'
 
 for l in l_strength:
     u_values[l] = u_values.apply(lambda x:
-                                 k/((k/x.value) +
-                                    (float(l)*l_weight.loc[x.type][0])),
+                                 k / ((k / x.value) +
+                                      (float(l) * l_weight.loc[x.type][0])),
                                  axis=1)
     energy_saved[l] = u_values.apply(lambda x:
                                      x[l] / x.value *
                                      average_surface_w.loc[x.assumed_subsector, x.type],
                                      axis=1)
-    costs[l] = u_values.apply(lambda x:
-         (cost_retro.loc[x.type, "cost_var"] * 100 * float(l) *
-         l_weight.loc[x.type][0] + cost_retro.loc[x.type, "cost_fix"])
-        * average_surface.loc[x.assumed_subsector, x.type]
-        / average_surface.loc[x.assumed_subsector, "surface"],
-        axis=1)
+    costs[l] = u_values.apply(lambda x: (cost_retro.loc[x.type, "cost_var"] *
+                                         100 *
+                                         float(l) *
+                                         l_weight.loc[x.type][0] +
+                                         cost_retro.loc[x.type, "cost_fix"]) *
+                              average_surface.loc[x.assumed_subsector, x.type] /
+                              average_surface.loc[x.assumed_subsector, "surface"], axis=1)
 
 # energy and costs per country, sector, subsector and year
 e_tot = energy_saved.groupby(['country', 'sector', 'subsector', 'bage']).sum()
@@ -196,9 +204,9 @@ cost_tot = costs.groupby(['country', 'sector', 'subsector', 'bage']).sum()
 # in case of missing data first concat
 energy_saved = pd.concat([e_tot, area.weight], axis=1)
 cost_res = pd.concat([cost_tot, area.weight], axis=1)
-energy_saved = (energy_saved.apply(lambda x: x*x.weight, axis=1)
+energy_saved = (energy_saved.apply(lambda x: x * x.weight, axis=1)
                 .groupby(level=[0, 1]).sum())
-cost_res = (cost_res.apply(lambda x: x*x.weight, axis=1)
+cost_res = (cost_res.apply(lambda x: x * x.weight, axis=1)
             .groupby(level=[0, 1]).sum())
 
 # %%
@@ -208,7 +216,8 @@ res.rename(index=country_iso_dic, inplace=True)
 res = res.loc[countries]
 # map missing countries
 for ct in map_for_missings.keys():
-    averaged_data = pd.DataFrame(res.loc[map_for_missings[ct], :].mean(level=1))
+    averaged_data = pd.DataFrame(
+        res.loc[map_for_missings[ct], :].mean(level=1))
     index = pd.MultiIndex.from_product([[ct], averaged_data.index.to_list()])
     averaged_data.index = index
     if ct not in res.index.levels[0]:
@@ -220,16 +229,16 @@ for ct in map_for_missings.keys():
 if construction_index:
     for ct in list(map_for_missings.keys() - cost_w.index):
         cost_w.loc[ct] = cost_w.reindex(index=map_for_missings[ct]).mean()
-    res.cost = res.cost.apply(lambda x: x*cost_w[x.index.levels[0]])
+    res.cost = res.cost.apply(lambda x: x * cost_w[x.index.levels[0]])
 
 # weights cost depending on country taxes
 if tax_weighting:
     for ct in list(map_for_missings.keys() - tax_w.index):
         tax_w[ct] = tax_w.reindex(index=map_for_missings[ct]).mean()
-    res.cost = res.cost.apply(lambda x: x*tax_w[x.index.levels[0]])
+    res.cost = res.cost.apply(lambda x: x * tax_w[x.index.levels[0]])
 
 # get the total cost-energy-savings weight by sector area
-tot = res.apply(lambda col: col*sec_w, axis=0).groupby(level=0).sum()
+tot = res.apply(lambda col: col * sec_w, axis=0).groupby(level=0).sum()
 tot.set_index(pd.MultiIndex.from_product([list(tot.index), ["tot"]]),
               inplace=True)
 res = res.append(tot).unstack().stack()
@@ -243,12 +252,12 @@ area_tot = area_tot.append(summed_area).unstack().stack()
 res.to_csv(snakemake.output.retro_cost)
 area_tot.to_csv(snakemake.output.floor_area)
 
-#%% --- plot -------------------------------------------------------------
+# %% --- plot -------------------------------------------------------------
 if plot:
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    for ct in ['DE', 'SE', 'BG']: #res.index.levels[0]:
-        dE = (res.loc[(ct, "tot"), "dE"]*100)
+    for ct in ['DE', 'SE', 'BG']:  # res.index.levels[0]:
+        dE = (res.loc[(ct, "tot"), "dE"] * 100)
         cost = res.loc[(ct, "tot"), "cost"]
         df = pd.concat([dE, cost], axis=1)
         df.columns = ["dE", "cost/m²"]
@@ -273,17 +282,17 @@ if 'snakemake' not in globals():
             lv='1',
             opts='Co2L-3H',
             sector_opts="[Co2L0p0-24H-T-H-B-I]"),
-            input=dict(
-                building_stock="data/retro/data_building_stock.csv",
-                tax_w="data/retro/electricity_taxes_eu.csv",
-                construction_index="data/retro/comparative_level_investment.csv",
-                average_surface="data/retro/average_surface_components.csv",
-                floor_area_missing="data/retro/floor_area_missing.csv",
-                clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
-                cost_germany="data/retro/retro_cost_germany.csv"),
+        input=dict(
+            building_stock="data/retro/data_building_stock.csv",
+            tax_w="data/retro/electricity_taxes_eu.csv",
+            construction_index="data/retro/comparative_level_investment.csv",
+            average_surface="data/retro/average_surface_components.csv",
+            floor_area_missing="data/retro/floor_area_missing.csv",
+            clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
+            cost_germany="data/retro/retro_cost_germany.csv"),
         output=dict(
-                retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
-                floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv")
-        )
+            retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
+            floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv")
+    )
     with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
         snakemake.config = yaml.safe_load(f)

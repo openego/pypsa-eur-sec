@@ -127,14 +127,14 @@ def plot_map(
             n, comp).carrier.map(rename_techs_tyndp)
 
         attr = "e_nom_opt" if comp == "stores" else "p_nom_opt"
-        
+
         df_c = getattr(n, comp)
         costs = pd.concat([costs, (df_c.capital_cost *
-                                  df_c[attr])
-                                  .groupby(
-                                  [df_c.location, df_c.nice_group]).sum()
-                                  .unstack().fillna(0.)],
-                                  axis=1)
+                                   df_c[attr])
+                           .groupby(
+            [df_c.location, df_c.nice_group]).sum()
+            .unstack().fillna(0.)],
+            axis=1)
 
         print(comp, costs)
     costs = costs.groupby(costs.columns, axis=1).sum()
@@ -544,7 +544,7 @@ if __name__ == "__main__":
                  + "/maps/elec_s_38_lv1.0__Co2L0p0-3H-T-H-B-I-costs-all.pdf"),
             today=(snakemake.config['results_dir'] + snakemake.config['run']
                    + "/maps/elec_s_38_lv1.0__Co2L0p0-3H-T-H-B-I-today.pdf"))
-        snakemake.input.scenario = "lv" + snakemake.wildcards.lv  
+        snakemake.input.scenario = "lv" + snakemake.wildcards.lv
         snakemake.config["run"] = "bio_costs"
         path = snakemake.config['results_dir'] + snakemake.config['run']
         snakemake.input.network = (path +
