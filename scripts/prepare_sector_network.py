@@ -80,7 +80,7 @@ def space_heat_retro(demand, years, r_rate=None, dE=None, option=None):
 
 def attach_wind_costs(n, costs):
     """update pypsa eur costs for offwind """
-    for tech in ["onwind", "offwind-ac", "offwind-dc"]:
+    for tech in ["onwind"]:#, "offwind-ac", "offwind-dc"]:
 
         with xr.open_dataset('../pypsa-eur/resources/profile_{}.nc'.format(tech)) as ds:
             #            if ds.indexes['bus'].empty: continue
@@ -173,15 +173,15 @@ def update_elec_costs(n, costs):
                 cost_to_replace["fuel"] /
                 cost_to_replace["efficiency"]).to_dict()
             eff_dict = cost_to_replace["efficiency"].to_dict()
-            c.df["capital_cost"] = c.df["carrier"].map(
-                cap_dict).combine_first(c.df["capital_cost"])
+#            c.df["capital_cost"] = c.df["carrier"].map(
+#                cap_dict).combine_first(c.df["capital_cost"])
             c.df["marginal_cost"] = c.df["carrier"].map(
                 vom_dict).combine_first(c.df["marginal_cost"])
             if c.name == "Generator":
                 c.df["efficiency"] = c.df["carrier"].map(
                     eff_dict).combine_first(c.df["efficiency"])
 
-    n = attach_wind_costs(n, costs)
+#    n = attach_wind_costs(n, costs)
 
 
 def add_co2_tracking(n):
@@ -842,7 +842,7 @@ def add_storage(network):
     if options['hydrogen_underground_storage']:
 
         h2_salt_cavern_potential = pd.read_csv(snakemake.input.h2_cavern,
-                                               index_col=0,
+                                               index_col=0, skiprows=[0],
                                                names=["potential", "TWh"])
         h2_cavern_ct = h2_salt_cavern_potential[h2_salt_cavern_potential.potential]
         cavern_nodes = pop_layout[pop_layout.ct.isin(h2_cavern_ct.index)]
@@ -1238,21 +1238,21 @@ def add_heat(network):
                                                'efficiency'] * costs.at[name_type + ' resistive heater',
                                                                         'fixed'],
                          p_nom_extendable=True)
-            if name == "urban central":
-                network.madd("Link",
-                             nodes[name] + " " + name + " gas boiler",
-                             p_nom_extendable=True,
-                             bus0=["EU gas"] * len(nodes[name]),
-                             bus1=nodes[name] + " " + name + " heat",
-                             bus2="co2 atmosphere",
-                             carrier=name + " gas boiler",
-                             efficiency=costs.at[name_type + ' gas boiler',
-                                                 'efficiency'],
-                             efficiency2=costs.at['gas',
-                                                  'CO2 intensity'],
-                             capital_cost=costs.at[name_type + ' gas boiler',
-                                                   'efficiency'] * costs.at[name_type + ' gas boiler',
-                                                                            'fixed'])
+#            if name == "urban central":
+            network.madd("Link",
+                         nodes[name] + " " + name + " gas boiler",
+                         p_nom_extendable=True,
+                         bus0=["EU gas"] * len(nodes[name]),
+                         bus1=nodes[name] + " " + name + " heat",
+                         bus2="co2 atmosphere",
+                         carrier=name + " gas boiler",
+                         efficiency=costs.at[name_type + ' gas boiler',
+                                             'efficiency'],
+                         efficiency2=costs.at['gas',
+                                              'CO2 intensity'],
+                         capital_cost=costs.at[name_type + ' gas boiler',
+                                               'efficiency'] * costs.at[name_type + ' gas boiler',
+                                                                        'fixed'])
 
         if options["solar_thermal"]:
 

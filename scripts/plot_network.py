@@ -37,7 +37,7 @@ override_component_attrs["StorageUnit"].loc["p_store"] = [
     "series", "MW", 0., "Storage charging.", "Output"]
 
 
-# %%
+
 # ----------------- PLOT HELPERS ---------------------------------------------
 def rename_techs_tyndp(tech):
     tech = rename_techs(tech)
@@ -186,7 +186,8 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
            bus_colors=snakemake.config['plotting']['tech_colors'],
            line_colors=dict(Line=ac_color, Link=dc_color),
            line_widths=line_widths_exp / linewidth_factor,
-           ax=ax)
+           ax=ax,  boundaries=(-10, 30, 34, 70),
+           color_geomap={'ocean': 'lightblue', 'land': "palegoldenrod"})
 
     handles = make_legend_circles_for(
         [5e9, 1e9], scale=bus_size_factor, facecolor="gray")
@@ -266,7 +267,7 @@ def plot_h2_map(network):
            line_colors=dict(Link=link_color),
            line_widths={"Link": link_widths},
            branch_components=["Link"],
-           ax=ax)
+           ax=ax,  boundaries=(-10, 30, 34, 70))
 
     handles = make_legend_circles_for(
         [50000, 10000], scale=bus_size_factor, facecolor=bus_color)
@@ -343,7 +344,7 @@ def plot_map_without(network):
            bus_colors="k",
            line_colors=dict(Line=ac_color, Link=dc_color),
            line_widths=line_widths_exp / linewidth_factor,
-           ax=ax)
+           ax=ax,  boundaries=(-10, 30, 34, 70))
 
     handles = []
     labels = []
@@ -402,14 +403,11 @@ def plot_series(network, carrier="AC"):
 
     supply = pd.concat((supply, negative_supply), axis=1)
 
-    fig, ax = plt.subplots()
-    fig.set_size_inches((8, 5))
-
     # 14-21.2 for flaute
     # 19-26.1 for flaute
 
-    start = "2013-01-19"
-    stop = "2013-01-26"
+    start = "2013-02-19"
+    stop = "2013-02-26"
 
     threshold = 10e3
 
@@ -426,6 +424,9 @@ def plot_series(network, carrier="AC"):
     supply.rename(columns={"electricity": "electric demand",
                            "heat": "heat demand"},
                   inplace=True)
+    supply.columns = supply.columns.str.replace("residential ", "")
+    supply.columns = supply.columns.str.replace("services ", "")
+    supply.columns = supply.columns.str.replace("urban decentral ", "decentral ")
 
     preferred_order = pd.Index(["electric demand",
                                 "transmission lines",
@@ -453,6 +454,10 @@ def plot_series(network, carrier="AC"):
 
     new_columns = ((preferred_order & supply.columns)
                    .append(supply.columns.difference(preferred_order)))
+    
+    supply =  supply.groupby(supply.columns, axis=1).sum()
+    fig, ax = plt.subplots()
+    fig.set_size_inches((8, 5))
 
     (supply.loc[start:stop, new_columns]
      .plot(ax=ax, kind="area", stacked=True, linewidth=0.,
@@ -479,8 +484,9 @@ def plot_series(network, carrier="AC"):
     ax.set_ylabel("Power [GW]")
     fig.tight_layout()
 
-    fig.savefig("{}{}/graphs/series-{}-{}-{}.pdf".format(
+    fig.savefig("{}{}/maps/series-{}-{}-{}-{}.pdf".format(
         snakemake.config['results_dir'], snakemake.config['run'],
+        snakemake.wildcards["lv"],
         carrier, start, stop),
         transparent=True)
 
@@ -493,10 +499,10 @@ if __name__ == "__main__":
         from vresutils import Dict
         import yaml
         snakemake = Dict()
-        snakemake.wildcards = {"lv": "opt"}  # lv1.0, lv1.25, lvopt
         with open('config.yaml') as f:
             snakemake.config = yaml.safe_load(f)
-        name = "elec_s_38_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
+        snakemake.wildcards = {"lv": "2.0"}  # lv1.0, lv1.25, lvopt
+        name = "elec_s_48_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
         snakemake.input = Dict()
         snakemake.output = Dict(
             map=(snakemake.config['results_dir'] + snakemake.config['run']
@@ -504,7 +510,7 @@ if __name__ == "__main__":
             today=(snakemake.config['results_dir'] + snakemake.config['run']
                    + "/maps/{}.pdf".format(name)))
         snakemake.input.scenario = "lv" + snakemake.wildcards["lv"]
-        snakemake.config["run"] = "bio_costs"
+#        snakemake.config["run"] = "bio_costs"
         path = snakemake.config['results_dir'] + snakemake.config['run']
         snakemake.input.network = (path +
                                    "/postnetworks/{}.nc"

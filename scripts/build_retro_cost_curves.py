@@ -32,7 +32,7 @@ interest_rate = 0.04
 
 annualise_cost = True   # annualise the investment costs
 tax_weighting = False   # weight costs depending on taxes in countries
-construction_index = False   # weight costs depending on costruction_index
+construction_index = True   # weight costs depending on costruction_index
 plot = False
 
 l_strength = ["0.04", "0.08"]  # additional insulation thickness
@@ -42,13 +42,15 @@ l_weight = pd.DataFrame({"weight": [4, 2, 2, 0.5]},  # [4,2,2,0.5]
 
 # mapping missing countries by neighbours
 map_for_missings = {
-    "AL": [
-        "BG", "RO", "ES"], "BA": ["HR"], "RS": [
-            "BG", "RO", "HR", "HU"], "MK": [
-                "BG", "ES"], "ME": [
-                    "BA", "AL", "RS", "HR"], "CH": [
-                        "SE", "DE"], "NO": ["SE"], "PL": [
-                            "DE", "CZ", "HR"]}  # TODO: missing u-values of Poland should be added from eurostat
+    "AL": ["BG", "RO", "ES"],
+    "BA": ["HR"],
+    "RS": ["BG", "RO", "HR", "HU"],
+    "MK": ["BG", "ES"],
+    "ME": ["BA", "AL", "RS", "HR"],
+    "CH": ["SE", "DE"],
+    "NO": ["SE"],
+    "PL": ["DE", "CZ", "HR"]
+    }  # TODO: missing u-values of Poland should be added from eurostat
 
 # %% ************ (2) DATA ***************************************************
 
@@ -85,7 +87,8 @@ country_iso_dic.update({'Norway': 'NO',
                         'Serbia': 'RS',
                         'Albania': 'AL',
                         'United Kingdom': 'GB',
-                        'Bosnia and Herzegovina': 'BA'})
+                        'Bosnia and Herzegovina': 'BA',
+                        'Switzerland': 'CH'})
 
 # average component surface --------------------------------------------------
 # TODO average component surface from service sector
@@ -157,7 +160,7 @@ if annualise_cost:
 
 if construction_index:
     cost_w = pd.read_csv(snakemake.input.construction_index,
-                         skiprows=3, nrows=31, index_col=0)
+                         skiprows=3, nrows=32, index_col=0)
     # since German retrofitting costs are assumed
     cost_w = ((cost_w["2018"] / cost_w.loc["Germany", "2018"])
               .rename(index=country_iso_dic))
