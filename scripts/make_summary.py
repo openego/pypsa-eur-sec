@@ -660,7 +660,7 @@ if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
         os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
-        name = "elec_s_38_lv1.0__Co2L0-3H-T-H"
+        name = "elec_s_48_lv1.0__Co2L0-3H-T-H"
         from vresutils import Dict
         import yaml
         snakemake = Dict()
@@ -669,40 +669,27 @@ if __name__ == "__main__":
 
         # overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "bio_costs"
-        snakemake.config["scenario"]["lv"] = [
-            1.0, 1.125, 1.5, 1.75, 2.0, "opt"]
+        snakemake.config["run"] = "different_costs"
+        snakemake.config['scenario']['clusters'] = [48]
+        snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, 2.0, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
 
-            "dist_retro",
-            #                                                       "dist_retro_steps",
-            #                                                       "dist_retro_tes",
-            #           "-B_01dist_retro",
-            #           "-B_02dist_retro",
-            #           "-B_03dist_retro",
-            #           "-B_04dist_retro",
-            #           "-B_05dist_retro",
-            #           "-B_06dist_retro",
-            #           "-B_07dist_retro",
-            #           "-B_08dist_retro",
-            #           "-B_09dist_retro",
-            #                                                       "distmax_retro",
-            #                                                       "distmax_retro_tes",
-            #                                                       "dist_noretro_",
-            #                                                       "dist_noretro_fuel-cell-heat"
-            #                                                       "dist_noretro_ccs",
-            #                                                       "dist_noretro_tes",
-            #                                                       "01dist_noretro",
-            #                                                       "02dist_noretro",
-            #           "03dist_noretro",
-            #                                                       "04dist_noretro",
-            #                                                       "05dist_noretro",
-            #                                                       "06dist_noretro",
-            #           "07dist_noretro",
-            #                                                       "08dist_noretro",
-            #           "09dist_noretro",
-            #                                                       "distmax_noretro",
-            #                                                       "distmax_noretro_tes",
+#            "base_load_notes",
+#            "base_load_tes",
+#            "noretro_notes",
+#            "noretro_tes",
+#        
+#            "nogas_noretro_notes",
+#            "nogas_noretro_tes",
+#            "nogas_notes",
+#            "nogas_tes",
+#            "retro_notes",
+#            "retro_tes",
+            
+            "2030_costs",
+            "2040_costs",
+            "2050_costs",
+           
         ]
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'
@@ -712,7 +699,8 @@ if __name__ == "__main__":
                 '/{name}/csvs/{item}.csv'.format(name=snakemake.config['run'], item=item)
 
     networks_dict = {(cluster, lv, opt + sector_opt):
-                     snakemake.config['results_dir'] + snakemake.config['run'] + '/postnetworks/elec_s_38_lv{}__Co2L0-3H-T-H-B.nc'.format(lv)
+                     (snakemake.config['results_dir'] + snakemake.config['run']
+                     + '/postnetworks/elec_s_{}_lv{}__Co2L0-3H-T-H-B_{}.nc'.format(cluster, lv, sector_opt))
                      .format(cluster=cluster,
                              opt=opt,
                              lv=lv,

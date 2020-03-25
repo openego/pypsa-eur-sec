@@ -138,10 +138,11 @@ def plot_costs():
     new_columns = df.sum().sort_values().index
 
     fig, ax = plt.subplots()
-    fig.set_size_inches((11, 15))
+    fig.set_size_inches((12.5, 9 ))
 
-    df.loc[new_index, new_columns].T.plot(kind="bar", ax=ax, stacked=True, color=[
-                                          snakemake.config['plotting']['tech_colors'][i] for i in new_index])
+    df.loc[new_index, new_columns].T.plot(kind="bar", ax=ax, stacked=True, zorder=2,
+                                          color=[snakemake.config['plotting']['tech_colors'][i]
+                                                 for i in new_index], legend=False)
 
     handles, labels = ax.get_legend_handles_labels()
 
@@ -149,14 +150,14 @@ def plot_costs():
     labels.reverse()
 
 #    ax.set_ylim([0,snakemake.config['plotting']['costs_max']])
-
+    ax.set_facecolor('xkcd:light grey')
     ax.set_ylabel("System Cost [EUR billion per year]")
 
     ax.set_xlabel("")
 
-    ax.grid(axis="y")
+    ax.grid(axis="y", zorder=0)
 
-    ax.legend(handles, labels, ncol=4, loc="upper left")
+#    ax.legend(handles, labels, ncol=3, loc="upper left", bbox_to_anchor=(-0.04,1.45))
 
     fig.tight_layout()
 
@@ -240,6 +241,7 @@ if __name__ == "__main__":
             snakemake.config = yaml.safe_load(f)
         snakemake.input = Dict()
         snakemake.output = Dict()
+        snakemake.config['run'] = "all"
 
         for item in ["costs", "energy"]:
             snakemake.input[item] = snakemake.config['summary_dir'] + \

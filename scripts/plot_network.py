@@ -105,7 +105,7 @@ def assign_location(n):
 
 # ----------------- PLOT FUNCTIONS --------------------------------------------
 def plot_map(network, components=["links", "stores", "storage_units", "generators"],
-             bus_size_factor=1.7e10):
+             bus_size_factor=1.7e10, transmission=False):
 
     n = network.copy()
     assign_location(n)
@@ -152,6 +152,12 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
     # make sure they are removed from index
     costs.index = pd.MultiIndex.from_tuples(costs.index.values)
 
+    # PDF has minimum width, so set these to zero
+    line_threshold = 500.
+    linewidth_factor = 2e4
+    ac_color = "gray"
+    dc_color = "m"
+
     if snakemake.wildcards["lv"] == "1.0":
         # should be zero
         line_widths_exp = pd.concat(
@@ -162,6 +168,13 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
                 Link=(
                     n.links.p_nom_opt -
                     n.links.p_nom)))
+        if transmission:
+            line_widths_exp = pd.concat(
+                dict(Line=n.lines.s_nom_opt,
+                     Link=n.links.p_nom_opt))
+            linewidth_factor = 2e3
+            line_threshold = 0.
+
     else:
         line_widths_exp = pd.concat(
             dict(
@@ -172,12 +185,10 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
                     n.links.p_nom_opt -
                     n.links.p_nom_min)))
 
-    # PDF has minimum width, so set these to zero
-    line_threshold = 500.
-    linewidth_factor = 2e4
-    ac_color = "gray"
-    dc_color = "m"
     line_widths_exp[line_widths_exp < line_threshold] = 0.
+
+    if transmission:
+        line_widths_exp[line_widths_exp > 1e4] = 1e4
 
     fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
     fig.set_size_inches(7, 6)
@@ -212,6 +223,13 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
                      framealpha=1,
                      labelspacing=0.8, handletextpad=1.5,
                      title='Transmission reinforcement')
+    if transmission:
+            l1_1 = ax.legend(handles, labels,
+                     loc="upper left", bbox_to_anchor=(0.30, 1.01),
+                     framealpha=1,
+                     labelspacing=0.8, handletextpad=1.5,
+                     title='Today\'s transmission')
+            
     ax.add_artist(l1_1)
 
     fig.savefig(snakemake.output.map + "_costs.pdf", transparent=True,
@@ -363,7 +381,7 @@ def plot_map_without(network):
     fig.savefig(snakemake.output.today, transparent=True, bbox_inches="tight")
 
 
-def plot_series(network, carrier="AC"):
+def plot_series(network, carrier="AC", name="test"):
 
     n = network.copy()
     assign_location(n)
@@ -484,10 +502,10 @@ def plot_series(network, carrier="AC"):
     ax.set_ylabel("Power [GW]")
     fig.tight_layout()
 
-    fig.savefig("{}{}/maps/series-{}-{}-{}-{}.pdf".format(
+    fig.savefig("{}{}/maps/series-{}-{}-{}-{}-{}.pdf".format(
         snakemake.config['results_dir'], snakemake.config['run'],
         snakemake.wildcards["lv"],
-        carrier, start, stop),
+        carrier, start, stop, name),
         transparent=True)
 
 
@@ -501,8 +519,11 @@ if __name__ == "__main__":
         snakemake = Dict()
         with open('config.yaml') as f:
             snakemake.config = yaml.safe_load(f)
-        snakemake.wildcards = {"lv": "2.0"}  # lv1.0, lv1.25, lvopt
+        snakemake.config['run'] = "retro_vs_noretro"
+        snakemake.wildcards = {"lv": "1.0"}  # lv1.0, lv1.25, lvopt
         name = "elec_s_48_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
+        suffix = "_retro_tes"
+        name = name + suffix
         snakemake.input = Dict()
         snakemake.output = Dict(
             map=(snakemake.config['results_dir'] + snakemake.config['run']
@@ -523,10 +544,10 @@ if __name__ == "__main__":
                       override_component_attrs=override_component_attrs)
 
     plot_map(n, components=["generators", "links", "stores", "storage_units"],
-             bus_size_factor=1.5e10)
+             bus_size_factor=1.5e10, transmission=True)
 
     plot_h2_map(n)
-    plot_map_without(n)
+#    plot_map_without(n)
 
-    plot_series(n, carrier="AC")
-    plot_series(n, carrier="heat")
+    plot_series(n, carrier="AC", name=suffix)
+    plot_series(n, carrier="heat", name=suffix)

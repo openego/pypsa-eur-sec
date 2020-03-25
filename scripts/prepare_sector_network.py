@@ -1356,7 +1356,7 @@ def add_heat(network):
         print("adding retrofitting")
         space_heat_demand = pd.concat(
             [heat_demand["residential space"], heat_demand["services space"]], axis=1)
-
+        res = {}
         retro_cost = pd.read_csv(
             snakemake.input.retro_cost_energy, index_col=[
                 0, 1], skipinitialspace=True, header=[
@@ -1416,6 +1416,7 @@ def add_heat(network):
                         # retrofitting
                         space_heat_demand_c = network.loads_t.p_set[name] * \
                             w_space[sec][node]
+                        res[node+" "+carrier+" heat"] = space_heat_demand_c
                         space_peak_c = space_heat_demand_c.max()
                         if space_peak_c == 0:
                             continue
