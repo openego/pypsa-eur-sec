@@ -669,7 +669,7 @@ if __name__ == "__main__":
 
         # overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "different_costs"
+        snakemake.config["run"] = "fossil"
         snakemake.config['scenario']['clusters'] = [48]
         snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, 2.0, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
@@ -678,18 +678,30 @@ if __name__ == "__main__":
 #            "base_load_tes",
 #            "noretro_notes",
 #            "noretro_tes",
-#        
+#
+#             "fuel_cell_heat",
+#             "fuel_cell_heat_costs2050_nocentralgas",
+#             "fuel_cell_heat_noretro",
 #            "nogas_noretro_notes",
 #            "nogas_noretro_tes",
 #            "nogas_notes",
 #            "nogas_tes",
 #            "retro_notes",
-#            "retro_tes",
-            
-            "2030_costs",
-            "2040_costs",
-            "2050_costs",
-           
+#             "woodstove_deacosts",
+#           "nogas_noretro_notes",
+#          "fossil_noretro_notes",
+#           "noretro_notes",
+#           "nogas_noretro_tes",
+#           "noretro_tes",
+#           "nogas_notes",
+#           "retro_notes",
+#           "nogas_tes",
+#           "retro_tes",
+
+#            "2030_costs",
+#            "2040_costs",
+#            "2050_costs",
+
         ]
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'

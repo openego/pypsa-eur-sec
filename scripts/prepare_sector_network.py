@@ -629,7 +629,9 @@ def convert_units(costs):
     costs.loc[costs.unit.str.contains(
         "USD"), "value"] *= snakemake.config['costs']['USD2013_to_EUR2013']
     costs.loc[costs.unit.str.contains("EUR/m3"), "value"] /= 4.2 / 3600 * 40
+    # TODO add solar thermal unit converting up here
     return costs
+
 
 
 def prepare_costs():
@@ -1354,30 +1356,31 @@ def add_heat(network):
     if options['retrofitting']:
 
         print("adding retrofitting")
-        space_heat_demand = pd.concat(
-            [heat_demand["residential space"], heat_demand["services space"]], axis=1)
+        # resample heat demand to not overestimate retrofitting
+        heat_demand_r =  heat_demand.resample(opts[1]).mean()
+        print("heat demand resampled")
+        # get space heat demand
+        space_heat_demand = pd.concat([heat_demand_r["residential space"],
+                                       heat_demand_r["services space"]],
+                                      axis=1)
+
         res = {}
-        retro_cost = pd.read_csv(
-            snakemake.input.retro_cost_energy, index_col=[
-                0, 1], skipinitialspace=True, header=[
-                0, 1])
+        retro_cost = pd.read_csv(snakemake.input.retro_cost_energy,
+                                 index_col=[0, 1], skipinitialspace=True,
+                                 header=[0, 1])
         floor_area = pd.read_csv(snakemake.input.floor_area, index_col=[0, 1])
 
-        index = pd.MultiIndex.from_product(
-            [pop_layout.index, sectors + ["tot"]])
+        index = pd.MultiIndex.from_product([pop_layout.index, sectors + ["tot"]])
         square_metres = pd.DataFrame(np.nan, index=index, columns=["m²"])
 
         # weighting for share of space heat demand
         w_space = {}
         for sector in sectors:
-            w_space[sector] = heat_demand[sector + " space"] / \
-                (heat_demand[sector + " space"] + heat_demand[sector + " water"])
-        w_space["tot"] = (
-            (heat_demand["services space"] +
-             heat_demand["residential space"]) /
-            heat_demand.groupby(
-                level=[1],
-                axis=1).sum())
+            w_space[sector] = heat_demand_r[sector + " space"] / \
+                (heat_demand_r[sector + " space"] + heat_demand_r[sector + " water"])
+        w_space["tot"] = ((heat_demand_r["services space"] +
+                           heat_demand_r["residential space"]) /
+                           heat_demand_r.groupby(level=[1], axis=1).sum())
 
         network.add("Carrier", "retrofitting")
 
@@ -1414,8 +1417,9 @@ def add_heat(network):
                         # weighting instead of taking space heat demand to
                         # allow simulatounsly exogenous and optimised
                         # retrofitting
-                        space_heat_demand_c = network.loads_t.p_set[name] * \
-                            w_space[sec][node]
+                        demand = (network.loads_t.p_set[name].resample(opts[1])
+                                  .mean())
+                        space_heat_demand_c = demand * w_space[sec][node]
                         res[node+" "+carrier+" heat"] = space_heat_demand_c
                         space_peak_c = space_heat_demand_c.max()
                         if space_peak_c == 0:
@@ -1437,6 +1441,8 @@ def add_heat(network):
                             s = capital_cost[(capital_cost.diff() < 0)].index
                             steps = steps.drop(s)
 
+                        space_pu_c = (space_pu_c.reindex(index=heat_demand.index)
+                                      .fillna(method="ffill"))
                         for strength in steps:
                             network.madd(
                                 'Generator',
@@ -1520,6 +1526,19 @@ def add_biomass(network):
                  capital_cost=costs.loc["biogas upgrading", "fixed"],
                  marginal_cost=costs.loc["biogas upgrading", "VOM"],
                  p_nom_extendable=True)
+
+    # add wood boiler
+#    heat_buses = n.buses.index[(n.buses.carrier.str.contains("residential rural heat")
+#                              | n.buses.carrier.str.contains("residential urban decentral heat"))]
+#
+#    network.madd("Link",
+#                 heat_buses + " wood boiler",
+#                 bus0=heat_buses.str[:5] + " solid biomass",
+#                 bus1=heat_buses,
+#                 carrier="wood boiler",
+#                 p_nom_extendable=True,
+#                 capital_cost=64381,
+#                 efficiency=0.88)
 
     # add biomass transport
     biomass_transport = create_network_topology(n, "Biomass transport ")
@@ -1848,20 +1867,23 @@ def add_industry(network):
 
 def add_waste_heat(network):
 
-    print("adding possibility to use industrial waste heat in district heating")
+    print("adding possibility to use industrial and fuel cell waste heat in \
+              district heating")
 
     # AC buses with district heating
     urban_central = n.buses.index[n.buses.carrier == "urban central heat"]
     if not urban_central.empty:
         urban_central = urban_central.str[:-len(" urban central heat")]
-
-        if options['use_fischer_tropsch_waste_heat']:
-            n.links.loc[urban_central + " Fischer-Tropsch",
-                        "bus3"] = urban_central + " urban central heat"
-            n.links.loc[urban_central + " Fischer-Tropsch", "efficiency3"] = 0.95 - \
-                n.links.loc[urban_central + " Fischer-Tropsch", "efficiency"]
+        if "I" in opts:
+            print("use industry waste heat")
+            if options['use_fischer_tropsch_waste_heat']:
+                n.links.loc[urban_central + " Fischer-Tropsch",
+                            "bus3"] = urban_central + " urban central heat"
+                n.links.loc[urban_central + " Fischer-Tropsch", "efficiency3"] = 0.95 - \
+                    n.links.loc[urban_central + " Fischer-Tropsch", "efficiency"]
 
         if options['use_fuel_cell_waste_heat']:
+            print("use fuel cell waste heat")
             n.links.loc[urban_central + " H2 Fuel Cell",
                         "bus2"] = urban_central + " urban central heat"
             n.links.loc[urban_central + " H2 Fuel Cell", "efficiency2"] = 0.95 - \
@@ -2040,7 +2062,7 @@ if __name__ == "__main__":
     if "I" in opts:
         add_industry(n)
 
-    if "I" in opts and "H" in opts:
+    if "H" in opts:
         add_waste_heat(n)
 
     if "decentral" in opts:

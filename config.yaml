@@ -2,7 +2,7 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: 'base_load'
+run: 'bio_costs'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
@@ -67,7 +67,7 @@ sector:
   'shipping_average_efficiency' : 0.4 #For conversion of fuel oil to propulsion in 2011
   'time_dep_hp_cop' : True
   'space_heating_fraction' : 1.0 #fraction of space heating active
-  'base_load' : True
+  'base_load' : False
   'retrofitting' : True
   #'retrofitting-cost_factor' : 1.0
   'retrofitting_exogenous' : False # assuming an annual natural retro-rate
@@ -264,6 +264,7 @@ plotting:
     "kerosene for aviation": "#44DD33"
     "naphtha for industry" : "#44DD33"
     "nuclear" : "#303030"
+    "wood boiler": "teal"
     "water tanks" : "#BBBBBB"
     "hot water storage" : "#BBBBBB"
     "hot water charging" : "#BBBBBB"

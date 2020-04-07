@@ -66,12 +66,12 @@ eu28_eea = eu28[:]
 eu28_eea.remove("GB")
 eu28_eea.append("UK")
 
-
+#% ------------- FUNCTIONS -------------------------------------------------
 def build_eurostat(year):
     """Return multi-index for all countries' energy data in TWh/a."""
 
     stats_from_year = 2016
-
+    
     fns = {
         2016: "data/eurostat-energy_balances-june_2016_edition/{year}-Energy-Balances-June2016edition.xlsx",
         2017: "data/eurostat-energy_balances-june_2017_edition/{year}-ENERGY-BALANCES-June2017edition.xlsx"}
@@ -412,10 +412,10 @@ def build_energy_totals():
     # Missing district heating share
     dh_share = pd.read_csv(snakemake.input.district_heat_share,
                            index_col=0, usecols=[0, 1])
-    missing = clean_df.index[clean_df["district heat share"].isnull()]
-    index = dh_share.index.intersection(missing)
-    clean_df.loc[index, "district heat share"] = (
-        dh_share.loc[index] / 100).iloc[:, 0]
+    # make conservative assumption and take minimum from both data sets
+    clean_df["district heat share"] = (pd.concat([clean_df["district heat share"],
+                                                  dh_share.reindex(index=clean_df.index)/100],
+                                                  axis=1).min(axis=1))
 
     # Missing aviation
     print("Aviation")

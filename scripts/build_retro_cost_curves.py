@@ -30,7 +30,7 @@ pd.options.mode.chained_assignment = None
 k = 0.035   # thermal conductivity standard value
 interest_rate = 0.04
 
-annualise_cost = True   # annualise the investment costs
+annualise_cost = True  # annualise the investment costs
 tax_weighting = False   # weight costs depending on taxes in countries
 construction_index = True   # weight costs depending on costruction_index
 plot = False
@@ -219,8 +219,7 @@ res.rename(index=country_iso_dic, inplace=True)
 res = res.loc[countries]
 # map missing countries
 for ct in map_for_missings.keys():
-    averaged_data = pd.DataFrame(
-        res.loc[map_for_missings[ct], :].mean(level=1))
+    averaged_data = pd.DataFrame(res.loc[map_for_missings[ct], :].mean(level=1))
     index = pd.MultiIndex.from_product([[ct], averaged_data.index.to_list()])
     averaged_data.index = index
     if ct not in res.index.levels[0]:
@@ -259,18 +258,30 @@ area_tot.to_csv(snakemake.output.floor_area)
 if plot:
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    for ct in ['DE', 'SE', 'BG']:  # res.index.levels[0]:
+    
+    for ct in ["DE", "SE", "BG"]:
         dE = (res.loc[(ct, "tot"), "dE"] * 100)
         cost = res.loc[(ct, "tot"), "cost"]
         df = pd.concat([dE, cost], axis=1)
         df.columns = ["dE", "cost/m²"]
-        df.plot(x="dE", y="cost/m²", grid=True, label=ct, ax=ax)
+        df.plot(x="dE", y="cost/m²", grid=True, label=ct, ax=ax, linewidth=2)
+#        plt.fill_between()
         plt.xlim([0, 100])
 #        plt.ylim([0, 7])
+
+
+    for ct in res.index.levels[0]:
+        dE = (res.loc[(ct, "tot"), "dE"] * 100)
+        cost = res.loc[(ct, "tot"), "cost"]
+        df = pd.concat([dE, cost], axis=1)
+        df.columns = ["dE", "cost/m²"]
+        df.plot(x="dE", y="cost/m²", grid=True, label=ct, ax=ax, legend=False,
+                alpha=0.2)
+        
         plt.ylabel("Euro/m²")
         plt.xlabel("energy demand in % of unrefurbished")
-    ax.legend(bbox_to_anchor=(1.5, 1.0), ncol=2)
-
+    path = "/home/ws/bw0928/Dokumente/own_projects/retrofitting_paper/figures/introduction/"
+    plt.savefig(path + "energy_cost_curve.pdf", bbox_inches="tight")
 # %% for testing
 if 'snakemake' not in globals():
     import yaml

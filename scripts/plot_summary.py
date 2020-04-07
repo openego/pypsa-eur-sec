@@ -138,7 +138,7 @@ def plot_costs():
     new_columns = df.sum().sort_values().index
 
     fig, ax = plt.subplots()
-    fig.set_size_inches((12.5, 9 ))
+    fig.set_size_inches((9, 5))
 
     df.loc[new_index, new_columns].T.plot(kind="bar", ax=ax, stacked=True, zorder=2,
                                           color=[snakemake.config['plotting']['tech_colors'][i]
@@ -157,7 +157,7 @@ def plot_costs():
 
     ax.grid(axis="y", zorder=0)
 
-#    ax.legend(handles, labels, ncol=3, loc="upper left", bbox_to_anchor=(-0.04,1.45))
+    ax.legend(handles, labels, ncol=2, bbox_to_anchor=(1,1))
 
     fig.tight_layout()
 
@@ -241,7 +241,7 @@ if __name__ == "__main__":
             snakemake.config = yaml.safe_load(f)
         snakemake.input = Dict()
         snakemake.output = Dict()
-        snakemake.config['run'] = "all"
+        snakemake.config['run'] = "fossil"
 
         for item in ["costs", "energy"]:
             snakemake.input[item] = snakemake.config['summary_dir'] + \
