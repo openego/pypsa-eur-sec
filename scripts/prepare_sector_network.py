@@ -819,6 +819,10 @@ def add_storage(network):
                  nodes + " H2",
                  carrier="H2")
 
+    network.madd("Bus",
+                 nodes + " gas",
+                 carrier="gas")
+
     network.madd("Link",
                  nodes + " H2 Electrolysis",
                  bus1=nodes + " H2",
@@ -826,7 +830,9 @@ def add_storage(network):
                  p_nom_extendable=True,
                  carrier="H2 Electrolysis",
                  efficiency=costs.at["electrolysis", "efficiency"],
-                 capital_cost=costs.at["electrolysis", "fixed"])
+                 capital_cost=(costs.at["electrolysis", "fixed"] *
+                               costs.at["electrolysis", "efficiency"])
+                 ) # NB: fixed cost is per MWel
 
     network.madd("Link",
                  nodes + " H2 Fuel Cell",
@@ -836,9 +842,9 @@ def add_storage(network):
                  carrier="H2 Fuel Cell",
                  efficiency=costs.at["fuel cell",
                                      "efficiency"],
-                 capital_cost=(costs.at["fuel cell",
-                                        "fixed"] * costs.at["fuel cell",
-                                                            "efficiency"]))  # NB: fixed cost is per MWel
+                 capital_cost=(costs.at["fuel cell","fixed"] *
+                               costs.at["fuel cell", "efficiency"])
+                 )  # NB: fixed cost is per MWel
 
     cavern_nodes = pd.DataFrame()
     if options['hydrogen_underground_storage']:
