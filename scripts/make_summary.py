@@ -669,7 +669,7 @@ if __name__ == "__main__":
 
         # overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "fossil"
+        snakemake.config["run"] = "gas_pipeline"
         snakemake.config['scenario']['clusters'] = [48]
         snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, 2.0, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
@@ -689,9 +689,9 @@ if __name__ == "__main__":
 #            "retro_notes",
 #             "woodstove_deacosts",
 #           "nogas_noretro_notes",
-          "solversettings",
-          "highfossil200",
-          "new",
+          "retro_generators",
+          "nogenerators",
+          "retro_tes_nofossil",
 #           "noretro_notes",
 #           "nogas_noretro_tes",
 #           "noretro_tes",

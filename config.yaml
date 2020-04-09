@@ -2,7 +2,7 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: 'bio_costs'
+run: 'gas_pipeline'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
@@ -90,7 +90,7 @@ sector:
   'methanation' : True
   'helmeth' : True
   'dac' : True
-  'fossil_gas': False
+  'fossil_gas': True
   'costs_old' : False
   'h2_costs_old': False
   'co2_vent' : True
