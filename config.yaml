@@ -100,6 +100,8 @@ sector:
   'hydrogen_underground_storage' : True
   'use_fischer_tropsch_waste_heat' : True
   'use_fuel_cell_waste_heat' : True
+  'electricity_distribution_grid' : True
+  'electricity_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
 
 costs:
   year: 2030

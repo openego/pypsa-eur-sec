@@ -112,6 +112,96 @@ def attach_wind_costs(n, costs):
 
             return n
 
+def insert_electricity_distribution_grid(network):
+    f_costs = options['electricity_distribution_grid_cost_factor']
+    print("Inserting electricity distribution grid with investment cost factor of",
+          f_costs)
+
+    nodes = pop_layout.index
+
+    network.madd("Bus",
+                 nodes+ " low voltage",
+                 carrier="low voltage")
+
+    network.madd("Link",
+                 nodes + " electricity distribution grid",
+                 bus0=nodes,
+                 bus1=nodes + " low voltage",
+                 p_nom_extendable=True,
+                 p_min_pu=-1,
+                 carrier="electricity distribution grid",
+                 efficiency=1,
+                 marginal_cost=0,
+                 # TODO add costs to cost.csv
+                 capital_cost=47505*f_costs)
+
+    loads = network.loads.index[network.loads.carrier=="electricity"]
+    network.loads.loc[loads,"bus"] += " low voltage"
+
+    bevs = network.links.index[network.links.carrier == "BEV charger"]
+    network.links.loc[bevs,"bus0"] += " low voltage"
+
+    v2gs = network.links.index[network.links.carrier == "V2G"]
+    network.links.loc[v2gs,"bus1"] += " low voltage"
+
+    hps = network.links.index[network.links.carrier.str.contains("heat pump")]
+    network.links.loc[hps,"bus0"] += " low voltage"
+
+    rh = network.links.index[network.links.carrier.str.contains("resistive")]
+    network.links.loc[rh,"bus0"] += " low voltage"
+
+    mchp = network.links.index[network.links.carrier.str.contains("micro gas")]
+    network.links.loc[mchp,"bus1"] += " low voltage"
+
+    #set existing solar to cost of utility cost rather the 50-50 rooftop-utility
+    solar = network.generators.index[network.generators.carrier == "solar"]
+    network.generators.loc[solar,"capital_cost"] = costs.at['solar-utility','fixed']
+
+    network.madd("Generator", solar,
+                 suffix=" rooftop",
+                 bus=network.generators.loc[solar,"bus"] + " low voltage",
+                 carrier="solar rooftop",
+                 p_nom_extendable=True,
+                 p_nom_max=network.generators.loc[solar,"p_nom_max"],
+                 marginal_cost=network.generators.loc[solar, 'marginal_cost'],
+                 capital_cost=costs.at['solar-rooftop','fixed'],
+                 efficiency=network.generators.loc[solar, 'efficiency'],
+                 p_max_pu=network.generators_t.p_max_pu[solar])
+
+
+
+    network.add("Carrier","home battery")
+
+    network.madd("Bus",
+                 nodes + " home battery",
+                 carrier="home battery")
+
+    network.madd("Store",
+                 nodes + " home battery",
+                 bus=nodes + " home battery",
+                 e_cyclic=True,
+                 e_nom_extendable=True,
+                 carrier="home battery",
+                 capital_cost=costs.at['battery storage','fixed'])
+
+    network.madd("Link",
+                 nodes + " home battery charger",
+                 bus0=nodes + " low voltage",
+                 bus1=nodes + " home battery",
+                 carrier="home battery charger",
+                 efficiency=costs.at['battery inverter','efficiency']**0.5,
+                 capital_cost=costs.at['battery inverter','fixed'],
+                 p_nom_extendable=True)
+
+    network.madd("Link",
+                 nodes + " home battery discharger",
+                 bus0=nodes + " home battery",
+                 bus1=nodes + " low voltage",
+                 carrier="home battery discharger",
+                 efficiency=costs.at['battery inverter','efficiency']**0.5,
+                 marginal_cost=options['marginal_cost_storage'],
+                 p_nom_extendable=True)
+
 
 def create_network_topology(n, prefix):
     """
@@ -2084,6 +2174,9 @@ if __name__ == "__main__":
                 "Including wave generators with cost factor of",
                 wave_cost_factor)
             add_wave(n, wave_cost_factor)
+        if o[:4] == "dist":
+            options['electricity_distribution_grid'] = True
+            options['electricity_distribution_grid_cost_factor'] = float(o[4:].replace("p",".").replace("m","-"))
 
     (nodal_energy_totals, heat_demand, ashp_cop, gshp_cop, solar_thermal,
      transport, avail_profile, dsm_profile, co2_totals, nodal_transport_data,
@@ -2141,6 +2234,9 @@ if __name__ == "__main__":
                 limit = o[o.find(tech) + len(tech):]
                 limit = float(limit.replace("p", ".").replace("m", "-"))
                 restrict_technology_potential(n, tech, limit)
+
+    if options['electricity_distribution_grid']:
+        insert_electricity_distribution_grid(n)
 
     if not options["ccs"]:
         print("no CCS")
