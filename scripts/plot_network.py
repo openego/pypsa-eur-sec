@@ -8,7 +8,7 @@ import numpy as np
 import pypsa
 import matplotlib.pyplot as plt
 import pandas as pd
-
+import os
 # allow plotting without Xwindows
 import matplotlib
 matplotlib.use('Agg')
@@ -229,48 +229,62 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
                      framealpha=1,
                      labelspacing=0.8, handletextpad=1.5,
                      title='Today\'s transmission')
-            
+
     ax.add_artist(l1_1)
 
     fig.savefig(snakemake.output.map + "_costs.pdf", transparent=True,
                 bbox_inches="tight")
 
 
-def plot_h2_map(network):
+def plot_carrier_map(network, carrier="H2"):
+
+    if carrier == "H2":
+        generation = "H2 Electrolysis"
+    elif carrier == "gas":
+        generation = "helmeth"
+    else:
+        print("unkown carrier, assuming H2")
+        generation = "H2 Electrolysis"
+        carrier = "H2"
 
     n = network.copy()
-    if "H2 pipeline" not in n.links.carrier.unique():
+
+    if carrier + " pipeline" not in n.links.carrier.unique():
         return
 
     assign_location(n)
 
-    bus_size_factor = 1e5
-    linewidth_factor = 1e4
-    # MW below which not drawn
-    line_threshold = 1e3
-    bus_color = "m"
-    link_color = "c"
-
     # Drop non-electric buses so they don't clutter the plot
     n.buses.drop(n.buses.index[n.buses.carrier != "AC"], inplace=True)
 
-    elec = n.links.index[n.links.carrier == "H2 Electrolysis"]
+    elec = n.links.index[n.links.carrier == generation]
+
+    factor_bus = len(str(int(n.links.loc[elec, "p_nom_opt"].mean())))
+    bus_size_factor = 15**factor_bus
 
     bus_sizes = pd.Series(0., index=n.buses.index)
-    bus_sizes.loc[elec.str.replace(" H2 Electrolysis", "")] = \
+    bus_sizes.loc[elec.str.replace(" "+generation, "")] = \
                         n.links.loc[elec, "p_nom_opt"].values / bus_size_factor
 
     # make a fake MultiIndex so that area is correct for legend
     bus_sizes.index = pd.MultiIndex.from_product(
-        [bus_sizes.index, ["electrolysis"]])
+                      [bus_sizes.index, ["electrolysis"]])
 
-    n.links.drop(n.links.index[n.links.carrier != "H2 pipeline"], inplace=True)
+    n.links.drop(n.links.index[n.links.carrier != carrier + " pipeline"],
+                 inplace=True)
+
+    factor_line = len(str(int(n.links.p_nom_opt.mean())))
+    linewidth_factor = 8**factor_line
+    # MW below which not drawn
+    line_threshold = 1 #1e3
+    bus_color = "m"
+    link_color = "c"
 
     link_widths = n.links.p_nom_opt / linewidth_factor
     link_widths[n.links.p_nom_opt < line_threshold] = 0.
 
-    n.links.bus0 = n.links.bus0.str.replace(" H2", "")
-    n.links.bus1 = n.links.bus1.str.replace(" H2", "")
+    n.links.bus0 = n.links.bus0.str.replace(" "+ carrier, "")
+    n.links.bus1 = n.links.bus1.str.replace(" "+carrier, "")
 
     print(link_widths.sort_values())
 
@@ -294,7 +308,7 @@ def plot_h2_map(network):
                    loc="upper left", bbox_to_anchor=(0.01, 1.01),
                    labelspacing=1.0,
                    framealpha=1.,
-                   title='Electrolyzer capacity',
+                   title=generation + ' capacity',
                    handler_map=make_handler_map_to_scale_circles_as_in(ax))
     ax.add_artist(l2)
 
@@ -309,10 +323,10 @@ def plot_h2_map(network):
                      loc="upper left", bbox_to_anchor=(0.30, 1.01),
                      framealpha=1,
                      labelspacing=0.8, handletextpad=1.5,
-                     title='H2 pipeline capacity')
+                     title=carrier + ' pipeline capacity')
     ax.add_artist(l1_1)
 
-    fig.savefig(snakemake.output.map + "-h2_network.pdf", transparent=True,
+    fig.savefig(snakemake.output.map + carrier + "_network.pdf", transparent=True,
                 bbox_inches="tight")
 
 
@@ -472,7 +486,7 @@ def plot_series(network, carrier="AC", name="test"):
 
     new_columns = ((preferred_order & supply.columns)
                    .append(supply.columns.difference(preferred_order)))
-    
+
     supply =  supply.groupby(supply.columns, axis=1).sum()
     fig, ax = plt.subplots()
     fig.set_size_inches((8, 5))
@@ -519,10 +533,10 @@ if __name__ == "__main__":
         snakemake = Dict()
         with open('config.yaml') as f:
             snakemake.config = yaml.safe_load(f)
-        snakemake.config['run'] = "retro_vs_noretro"
+        snakemake.config['run'] = "gas_pipeline"
         snakemake.wildcards = {"lv": "1.0"}  # lv1.0, lv1.25, lvopt
         name = "elec_s_48_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
-        suffix = "_retro_tes"
+        suffix = "_noretro_tes"
         name = name + suffix
         snakemake.input = Dict()
         snakemake.output = Dict(
@@ -546,7 +560,8 @@ if __name__ == "__main__":
     plot_map(n, components=["generators", "links", "stores", "storage_units"],
              bus_size_factor=1.5e10, transmission=True)
 
-    plot_h2_map(n)
+    plot_carrier_map(n, carrier="gas")
+    plot_carrier_map(n, carrier="H2")
 #    plot_map_without(n)
 
     plot_series(n, carrier="AC", name=suffix)

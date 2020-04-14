@@ -1,6 +1,9 @@
 
 import yaml
+import os
+os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur/scripts")
 from add_electricity import load_costs
+os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
 from prepare_sector_network import generate_periodic_profiles, prepare_costs
 from six import iteritems
 
@@ -10,10 +13,9 @@ import pandas as pd
 import numpy as np
 
 import pypsa
-import os
 from vresutils.costdata import annuity
-os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
-os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur/scripts")
+
+
 
 
 idx = pd.IndexSlice
