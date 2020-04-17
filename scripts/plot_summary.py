@@ -241,7 +241,7 @@ if __name__ == "__main__":
             snakemake.config = yaml.safe_load(f)
         snakemake.input = Dict()
         snakemake.output = Dict()
-        snakemake.config['run'] = "gas_pipeline"
+        snakemake.config['run'] = "distribution_grid"
 
         for item in ["costs", "energy"]:
             snakemake.input[item] = snakemake.config['summary_dir'] + \

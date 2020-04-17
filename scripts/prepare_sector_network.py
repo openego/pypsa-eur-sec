@@ -1,21 +1,15 @@
 # coding: utf-8
 import numpy as np
-import scipy as sp
 import xarray as xr
 import re
 import os
-
-from six import iteritems, string_types
-
 import pypsa
-
 import yaml
-
 import pytz
-
-from vresutils.costdata import annuity
 import logging
 import pandas as pd
+from vresutils.costdata import annuity
+from six import iteritems, string_types
 
 logger = logging.getLogger(__name__)
 idx = pd.IndexSlice
@@ -26,24 +20,26 @@ idx = pd.IndexSlice
 # as many buses as you need with format busi for i = 2,3,4,5,....
 # See https://pypsa.org/doc/components.html#
 # link-with-multiple-outputs-or-inputs
+override_component_attrs = pypsa.descriptors.Dict({k: v.copy() for k, v in
+                                                   pypsa.components.component_attrs.items()})
+override_component_attrs["Link"].loc["bus2"] = ["string", np.nan, np.nan,
+                                                "2nd bus", "Input (optional)"]
+override_component_attrs["Link"].loc["bus3"] = ["string", np.nan, np.nan,
+                                                "3rd bus", "Input (optional)"]
+override_component_attrs["Link"].loc["efficiency2"] = ["static or series",
+                                                       "per unit", 1.,
+                                                       "2nd bus efficiency",
+                                                       "Input (optional)"]
+override_component_attrs["Link"].loc["efficiency3"] = ["static or series",
+                                                       "per unit", 1.,
+                                                       "3rd bus efficiency",
+                                                       "Input (optional)"]
+override_component_attrs["Link"].loc["p2"] = ["series", "MW", 0.,
+                                              "2nd bus output", "Output"]
+override_component_attrs["Link"].loc["p3"] = ["series", "MW", 0.,
+                                              "3rd bus output", "Output"]
 
-
-override_component_attrs = pypsa.descriptors.Dict(
-    {k: v.copy() for k, v in pypsa.components.component_attrs.items()})
-override_component_attrs["Link"].loc["bus2"] = [
-    "string", np.nan, np.nan, "2nd bus", "Input (optional)"]
-override_component_attrs["Link"].loc["bus3"] = [
-    "string", np.nan, np.nan, "3rd bus", "Input (optional)"]
-override_component_attrs["Link"].loc["efficiency2"] = [
-    "static or series", "per unit", 1., "2nd bus efficiency", "Input (optional)"]
-override_component_attrs["Link"].loc["efficiency3"] = [
-    "static or series", "per unit", 1., "3rd bus efficiency", "Input (optional)"]
-override_component_attrs["Link"].loc["p2"] = [
-    "series", "MW", 0., "2nd bus output", "Output"]
-override_component_attrs["Link"].loc["p3"] = [
-    "series", "MW", 0., "3rd bus output", "Output"]
-
-
+# -------------- FUNCTIONS ----------------------------------------------------
 def space_heat_retro(demand, years, r_rate=None, dE=None, option=None):
     if option == "all":
         """assuming that already retrofitted buildings can get retrofitted again
@@ -63,24 +59,27 @@ def space_heat_retro(demand, years, r_rate=None, dE=None, option=None):
     elif option == "retro_steps":
         """
         after http://www.europarl.europa.eu/RegData/etudes/STUD/2016/587326/IPOL_STU(2016)587326_EN.pdf p.22
-        and own calculation on the assumption that 1% of the building stock is renovated extensively,
+        and own calculation on the assumption that 1% of the building stock
+        is renovated extensively,
         - > 1.5% of the building stock are yearly renovated
-        wherat 85% undergo moderate renovations (10% energy savings), 10% moderate (30% energy savings)
-        and 5% extensive (60% energy savings)
+        wherat 85% undergo moderate renovations (10% energy savings),
+        10% moderate (30% energy savings) and 5% extensive (60% energy savings)
         """
         demand_future = demand
         for i in range(1, years):
             demand_future = 0.985 * demand_future + 0.015 * \
                 demand_future * (0.85 * 0.9 + 0.1 * 0.7 + 0.05 * 0.4)
     elif option == "EU-target":
-        """ the EU parliament targets a space heat reduction of 80% until 2050"""
+        """
+        the EU parliament targets a space heat reduction of 80% until 2050
+        """
         demand_future = 0.2 * demand
     return demand_future
 
 
 def attach_wind_costs(n, costs):
     """update pypsa eur costs for offwind """
-    for tech in ["onwind"]:#, "offwind-ac", "offwind-dc"]:
+    for tech in ["onwind"]:  #, "offwind-ac", "offwind-dc"]:
 
         with xr.open_dataset('../pypsa-eur/resources/profile_{}.nc'.format(tech)) as ds:
             #            if ds.indexes['bus'].empty: continue
@@ -230,12 +229,13 @@ def create_network_topology(n, prefix):
 
 
 def remove_elec_base_techs(n):
-    """remove conventional generators (e.g. OCGT) and storage units (e.g. batteries and H2)
-    from base electricity-only network, since they're added here differently using links
     """
-    to_keep = {
-        "generators": snakemake.config["plotting"]["vre_techs"],
-        "storage_units": snakemake.config["plotting"]["renewable_storage_techs"]}
+    remove conventional generators (e.g. OCGT) and storage units
+    (e.g. batteries and H2) from base electricity-only network,
+    since they're added here differently using links
+    """
+    to_keep = {"generators": snakemake.config["plotting"]["vre_techs"],
+               "storage_units": snakemake.config["plotting"]["renewable_storage_techs"]}
 
     n.carriers = n.carriers.loc[to_keep["generators"] +
                                 to_keep["storage_units"]]
@@ -270,6 +270,9 @@ def update_elec_costs(n, costs):
             if c.name == "Generator":
                 c.df["efficiency"] = c.df["carrier"].map(
                     eff_dict).combine_first(c.df["efficiency"])
+
+    n.generators.loc[n.generators.carrier=="solar", "capital_cost"] = costs.loc[
+        "solar", "fixed"]
 
 #    n = attach_wind_costs(n, costs)
 
@@ -315,7 +318,7 @@ def add_co2_tracking(n):
                p_nom_extendable=True)
 
     if options['dac']:
-        # direct air capture consumes electricity to take CO2 from the air to the underground store
+        # direct air capture consumes electricity to take CO2 from the air to the            underground store
         # TODO do with cost from Breyer - later use elec and heat and capital
         # cost
         n.madd("Link", ["DAC"],
@@ -364,20 +367,18 @@ def add_emission_prices(n, emission_prices=None, exclude_co2=False):
         emission_prices = snakemake.config['costs']['emission_prices']
     if exclude_co2:
         emission_prices.pop('co2')
-    ep = (
-        pd.Series(emission_prices).rename(
-            lambda x: x +
-            '_emissions') *
-        n.carriers).sum(
-            axis=1)
+    ep = (pd.Series(emission_prices).rename(lambda x: x +'_emissions')
+          * n.carriers).sum(axis=1)
     n.generators['marginal_cost'] += n.generators.carrier.map(ep)
     n.storage_units['marginal_cost'] += n.storage_units.carrier.map(ep)
 
 
 def set_line_s_max_pu(n):
-    #  set n-1 security margin to 0.5 for 37 clusters and to 0.7 from 200 clusters
-    # 128 reproduces 98% of line volume in TWkm, but clustering distortions
-    # inside node
+    """
+    set n-1 security margin to 0.5 for 37 clusters and to 0.7
+    200 clusters 128 reproduces 98% of line volume in TWkm,
+    but clustering distortions inside node
+    """
     n_clusters = len(n.buses.index[n.buses.carrier == "AC"])
     s_max_pu = np.clip(0.5 + 0.2 * (n_clusters - 37) / (200 - 37), 0.5, 0.7)
     n.lines['s_max_pu'] = s_max_pu
@@ -402,20 +403,17 @@ def set_line_volume_limit(n, lv):
                                    costs.at['HVAC overhead', 'fixed'])
 
         # add HVDC inverter post factor, to maintain consistency with LV limit
-        n.links.loc[dc_b, 'capital_cost'] = (
-            n.links.loc[dc_b, 'length'] * costs.at['HVDC overhead', 'fixed'])  # +
+        n.links.loc[dc_b, 'capital_cost'] = (n.links.loc[dc_b, 'length'] *
+                                             costs.at['HVDC overhead', 'fixed'])
         # costs.at['HVDC inverter pair', 'fixed'])
 
     if lv != 1.0:
-        lines_s_nom = n.lines.s_nom.where(
-            n.lines.type == '',
-            np.sqrt(3) * n.lines.num_parallel *
-            n.lines.type.map(n.line_types.i_nom) *
-            n.lines.bus0.map(n.buses.v_nom)
-        )
+        lines_s_nom = n.lines.s_nom.where(n.lines.type == '',
+                                          np.sqrt(3) * n.lines.num_parallel *
+                                          n.lines.type.map(n.line_types.i_nom) *
+                                          n.lines.bus0.map(n.buses.v_nom))
 
         n.lines['s_nom_min'] = lines_s_nom
-
         n.links.loc[dc_b, 'p_nom_min'] = n.links['p_nom']
 
         n.lines['s_nom_extendable'] = True
@@ -922,13 +920,12 @@ def add_storage(network):
                  capital_cost=0.)
 
     network.madd("Generator",
-                nodes +  " fossil gas",
-                # suffix = nodes + " fossil gas",
-                bus=nodes + " gas",
-                p_nom_extendable=True,
-                carrier="gas",
-                capital_cost=0.,
-                marginal_cost=78)
+                 nodes +  " fossil gas",
+                 bus=nodes + " gas",
+                 p_nom_extendable=True,
+                 carrier="gas",
+                 capital_cost=0.,
+                 marginal_cost=78)
 
     network.madd("Link",
                  nodes + " H2 Electrolysis",
@@ -939,7 +936,7 @@ def add_storage(network):
                  efficiency=costs.at["electrolysis", "efficiency"],
                  capital_cost=(costs.at["electrolysis", "fixed"] *
                                costs.at["electrolysis", "efficiency"])
-                 ) # NB: fixed cost is per MWel
+                 )  # NB: fixed cost is per MWel
 
     network.madd("Link",
                  nodes + " H2 Fuel Cell",
@@ -951,21 +948,21 @@ def add_storage(network):
                                      "efficiency"],
                  capital_cost=(costs.at["fuel cell","fixed"] *
                                costs.at["fuel cell", "efficiency"])
-                 )  # NB: fixed cost is per MWel
+                 )   # NB: fixed cost is per MWel
 
     network.madd("Link",
-                  nodes + " " + "OCGT",
-                  bus0=nodes + " gas",
-                  bus1=nodes,
-                  bus2="co2 atmosphere",
-                  marginal_cost=(costs.at['OCGT', 'efficiency'] *
-                                 costs.at['OCGT', 'VOM']),
-                  capital_cost=(costs.at['OCGT','efficiency'] *
-                                costs.at['OCGT','fixed']),
-                  p_nom_extendable=True,
-                  carrier='OCGT',
-                  efficiency=costs.at['OCGT', 'efficiency'],
-                  efficiency2=costs.at['gas', 'CO2 intensity'])
+                 nodes + " " + "OCGT",
+                 bus0=nodes + " gas",
+                 bus1=nodes,
+                 bus2="co2 atmosphere",
+                 marginal_cost=(costs.at['OCGT', 'efficiency'] *
+                                costs.at['OCGT', 'VOM']),
+                 capital_cost=(costs.at['OCGT','efficiency'] *
+                               costs.at['OCGT','fixed']),
+                 p_nom_extendable=True,
+                 carrier='OCGT',
+                 efficiency=costs.at['OCGT', 'efficiency'],
+                 efficiency2=costs.at['gas', 'CO2 intensity'])
 
     cavern_nodes = pd.DataFrame()
     if options['hydrogen_underground_storage']:

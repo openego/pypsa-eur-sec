@@ -2,6 +2,7 @@
 import cartopy.crs as ccrs
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, Ellipse
+os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
 from make_summary import assign_carriers
 from plot_summary import rename_techs, preferred_order
 import numpy as np
@@ -259,8 +260,8 @@ def plot_carrier_map(network, carrier="H2"):
 
     elec = n.links.index[n.links.carrier == generation]
 
-    factor_bus = len(str(int(n.links.loc[elec, "p_nom_opt"].mean())))
-    bus_size_factor = 15**factor_bus
+    factor_bus = len(str(int(n.links.loc[elec, "p_nom_opt"].max())))
+    bus_size_factor = 7**factor_bus
 
     bus_sizes = pd.Series(0., index=n.buses.index)
     bus_sizes.loc[elec.str.replace(" "+generation, "")] = \
@@ -273,8 +274,8 @@ def plot_carrier_map(network, carrier="H2"):
     n.links.drop(n.links.index[n.links.carrier != carrier + " pipeline"],
                  inplace=True)
 
-    factor_line = len(str(int(n.links.p_nom_opt.mean())))
-    linewidth_factor = 8**factor_line
+    factor_line = len(str(int(n.links.p_nom_opt.max())))
+    linewidth_factor = 5**factor_line
     # MW below which not drawn
     line_threshold = 1 #1e3
     bus_color = "m"
@@ -301,12 +302,14 @@ def plot_carrier_map(network, carrier="H2"):
            branch_components=["Link"],
            ax=ax,  boundaries=(-10, 30, 34, 70))
 
+    max_b = round(bus_sizes.max()*bus_size_factor, ndigits=-2)
+    max_l = round(link_widths.max()*linewidth_factor, ndigits=-2)
     handles = make_legend_circles_for(
-        [50000, 10000], scale=bus_size_factor, facecolor=bus_color)
-    labels = ["{} GW".format(s) for s in (50, 10)]
+        [max_b, 0.5 * max_b], scale=bus_size_factor, facecolor=bus_color)
+    labels = ["{} GW".format(s) for s in (max_b/1e3, 0.5*max_b/1e3)]
     l2 = ax.legend(handles, labels,
                    loc="upper left", bbox_to_anchor=(0.01, 1.01),
-                   labelspacing=1.0,
+                   labelspacing=1.5,
                    framealpha=1.,
                    title=generation + ' capacity',
                    handler_map=make_handler_map_to_scale_circles_as_in(ax))
@@ -315,18 +318,19 @@ def plot_carrier_map(network, carrier="H2"):
     handles = []
     labels = []
 
-    for s in (50, 10):
+    for s in (max_l, 0.5*max_l):
         handles.append(plt.Line2D([0], [0], color=link_color,
-                                  linewidth=s * 1e3 / linewidth_factor))
-        labels.append("{} GW".format(s))
+                                  linewidth=s/linewidth_factor))
+        labels.append("{} GW".format(s/1e3))
     l1_1 = ax.legend(handles, labels,
-                     loc="upper left", bbox_to_anchor=(0.30, 1.01),
+                     loc="upper left", bbox_to_anchor=(0.40, 1.01),
                      framealpha=1,
                      labelspacing=0.8, handletextpad=1.5,
                      title=carrier + ' pipeline capacity')
     ax.add_artist(l1_1)
 
-    fig.savefig(snakemake.output.map + carrier + "_network.pdf", transparent=True,
+    fig.savefig(snakemake.output.map + "_"+ carrier + "_network.pdf",
+                transparent=True,
                 bbox_inches="tight")
 
 
@@ -533,10 +537,10 @@ if __name__ == "__main__":
         snakemake = Dict()
         with open('config.yaml') as f:
             snakemake.config = yaml.safe_load(f)
-        snakemake.config['run'] = "gas_pipeline"
+        snakemake.config['run'] = "distribution_grid"
         snakemake.wildcards = {"lv": "1.0"}  # lv1.0, lv1.25, lvopt
         name = "elec_s_48_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
-        suffix = "_noretro_tes"
+        suffix = "_f15"
         name = name + suffix
         snakemake.input = Dict()
         snakemake.output = Dict(
