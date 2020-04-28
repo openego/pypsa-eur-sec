@@ -87,8 +87,8 @@ sector:
   'solar_thermal' : True
   'solar_cf_correction': 0.788457  # =  >>> 1/1.2683
   'marginal_cost_storage' : 0. #1e-4
-  'methanation' : True
-  'helmeth' : True
+  'methanation' : False
+  'helmeth' : False
   'dac' : True
   'fossil_gas': True
   'costs_old' : False
