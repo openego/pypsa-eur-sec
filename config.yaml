@@ -95,10 +95,10 @@ sector:
   'h2_costs_old': False
   'co2_vent' : True
   'SMR' : True
-  'ccs' : False
-  'ccs_fraction' : 0.0 # 0.9
+  'ccs' : True
+  'ccs_fraction' : 0.9
   'hydrogen_underground_storage' : True
-  'use_fischer_tropsch_waste_heat' : False
+  'use_fischer_tropsch_waste_heat' : True
   'use_fuel_cell_waste_heat' : True
   'electricity_distribution_grid' : True
   'electricity_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
