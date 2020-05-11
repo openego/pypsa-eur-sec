@@ -49,7 +49,7 @@ def space_heat_retro(demand, years, r_rate=None, dE=None, option=None):
         demand_future = demand
         for i in range(1, years):
             demand_future = (1 - r_rate) * demand_future + \
-                r_rate * dE * demand_future
+                            r_rate * dE * demand_future
     elif option == "once":
         """ first only not retrofitted buildings are renovated, if the observed
         period is longer than the needed time to renovate the whole stock,
@@ -207,6 +207,38 @@ def insert_electricity_distribution_grid(network):
                  p_nom_extendable=True)
 
 
+def insert_gas_distribution_grid(network):
+    f_costs = options['gas_distribution_grid_cost_factor']
+    print("Inserting gas distribution grid with investment cost\
+          factor of", f_costs)
+
+    nodes = pop_layout.index
+
+    network.madd("Bus",
+                 nodes + " gas distribution",
+                 carrier="gas distribution")
+
+    network.madd("Link",
+                 nodes + " gas distribution grid",
+                 bus0=nodes + " gas",
+                 bus1=nodes + " gas distribution",
+                 p_nom_extendable=True,
+                 p_min_pu=-1,
+                 carrier="gas distribution grid",
+                 efficiency=1,
+                 marginal_cost=0,
+                 # TODO add costs to cost.csv
+                 capital_cost=2536*f_costs)   # costs from Frauenhofer
+
+    # gas boilers
+    gas_b = network.links.index[network.links.carrier.str.contains("boiler")]
+    network.links.loc[gas_b, "bus0"] += " distribution"
+    # micro CHPs
+    mchp = network.links.index[network.links.carrier.str.contains("micro gas")]
+    network.links.loc[mchp, "bus0"] += " distribution"
+
+
+
 def create_network_topology(n, prefix):
     """
     create a network topology as the electric network,
@@ -254,13 +286,12 @@ def remove_elec_base_techs(n):
 
 def update_elec_costs(n, costs):
     """update the old cost assumptions from pypsa-eur to the new ones,
-    this function keeps the old DC line costs and the old wind costs"""
+    this function keeps the old DC line costs"""
 
     print("updating old pypsa-eur cost assumptions")
 
     for c in n.iterate_components(n.one_port_components):
         if c.name != "Load":
-            print(c.name)
             cost_to_replace = costs  # .loc[~costs.index.str.contains("wind")]
             cap_dict = cost_to_replace["fixed"].to_dict()
             vom_dict = (
@@ -268,8 +299,6 @@ def update_elec_costs(n, costs):
                 cost_to_replace["fuel"] /
                 cost_to_replace["efficiency"]).to_dict()
             eff_dict = cost_to_replace["efficiency"].to_dict()
-#            c.df["capital_cost"] = c.df["carrier"].map(
-#                cap_dict).combine_first(c.df["capital_cost"])
             c.df["marginal_cost"] = c.df["carrier"].map(
                 vom_dict).combine_first(c.df["marginal_cost"])
             if c.name == "Generator":
@@ -279,7 +308,10 @@ def update_elec_costs(n, costs):
     n.generators.loc[n.generators.carrier=="solar", "capital_cost"] = costs.loc[
         "solar", "fixed"]
 
-#    n = attach_wind_costs(n, costs)
+    n.generators.loc[n.generators.carrier=="onwind", "capital_cost"] = costs.at[
+        'onwind', 'fixed']
+
+    # n = attach_wind_costs(n, costs)
 
 
 def add_co2_tracking(n):
@@ -310,7 +342,7 @@ def add_co2_tracking(n):
            e_nom_extendable=True,
            e_nom_max=2e8,  # 1e6
            capital_cost=20.,
-           # e_cyclic=True,
+           e_cyclic=True,
            carrier="co2 stored",
            bus="co2 stored")
 
@@ -465,13 +497,12 @@ def average_every_nhours(n, offset):
     return m
 
 
-def generate_periodic_profiles(
-    dt_index=pd.date_range(
-        "2011-01-01 00:00",
-        "2011-12-31 23:00",
-        freq="H", tz="UTC"),
-        nodes=[], weekly_profile=range(24 * 7)):
-    """Give a 24*7 long list of weekly hourly profiles, generate this for
+def generate_periodic_profiles(dt_index=pd.date_range("2011-01-01 00:00",
+                                                      "2011-12-31 23:00",
+                                                      freq="H", tz="UTC"),
+                               nodes=[], weekly_profile=range(24 * 7)):
+    """
+       Give a 24*7 long list of weekly hourly profiles, generate this for
        each country for the period dt_index, taking account of time
        zones and Summer Time.
 
@@ -499,9 +530,11 @@ def shift_df(df, hours=1):
 def transport_degree_factor(temperature, deadband_lower=15, deadband_upper=20,
                             lower_degree_factor=0.5,
                             upper_degree_factor=1.6):
-    """Work out how much energy demand in vehicles increases due to heating and cooling.
-    There is a deadband where there is no increase.
-    Degree factors are % increase in demand compared to no heating/cooling fuel consumption.
+    """
+    Work out how much energy demand in vehicles increases due to heating and
+    cooling. There is a deadband where there is no increase.
+    Degree factors are % increase in demand compared to no heating/cooling fuel
+    consumption.
     Returns per unit increase in demand for each place and time
     """
 
@@ -741,18 +774,13 @@ def prepare_costs():
                     "lifetime": 25}
 
     # set all asset costs and other parameters
-    costs = pd.read_csv(
-        snakemake.input.costs +
-        "costs_{}.csv".format(cost_year),
-        index_col=list(
-            range(2))).sort_index()
+    costs = pd.read_csv(snakemake.input.costs + "costs_{}.csv".format(cost_year),
+                        index_col=list(range(2))).sort_index()
 
     # convert units
     costs = convert_units(costs)
 
-    costs = costs["value"].unstack(
-        level=1).groupby(
-        level="technology").sum(
+    costs = costs["value"].unstack(level=1).groupby(level="technology").sum(
             min_count=1)
     costs = costs.fillna(map_missings)
 
@@ -1132,13 +1160,17 @@ def add_transport(network):
                  suffix=" EV battery",
                  carrier="Li ion")
 
-    network.madd("Load", nodes, suffix=" transport", bus=nodes +
-                 " EV battery", carrier="transport", p_set=(1 -
-                                                            options['transport_fuel_cell_share']) *
-                 (transport[nodes] +
-                  shift_df(transport[nodes], 1) +
-                  shift_df(transport[nodes], 2)) /
-                 3.)
+    network.madd("Load",
+                 nodes,
+                 suffix=" transport",
+                 bus=nodes + " EV battery",
+                 carrier="transport",
+                 p_set=((1 - options['transport_fuel_cell_share']) *
+                        (transport[nodes]
+                         + shift_df(transport[nodes], 1)
+                         + shift_df(transport[nodes], 2))
+                        / 3.)
+                )
 
     # 3-phase charger with 11 kW * x% of time grid-connected
     p_nom = nodal_transport_data["number cars"] * \
@@ -1231,8 +1263,8 @@ def add_heat(network):
         nodes["urban central"] = dist_fraction.index
         # if district heating share larger than urban fraction -> set urban
         # fraction to district heating share
-        urban_fraction = pd.concat(
-            [urban_fraction, dist_fraction], axis=1).max(axis=1)
+        urban_fraction = pd.concat([urban_fraction, dist_fraction],
+                                   axis=1).max(axis=1)
         diff = urban_fraction - dist_fraction
         dist_fraction += diff * options["dh_strength"]
         print("************************************")
@@ -1243,6 +1275,11 @@ def add_heat(network):
             "resulting DH share: ",
             dist_fraction)
         print("**********************************")
+
+    else:
+        dist_fraction = urban_fraction * 0
+        nodes["urban central"] = dist_fraction.index
+
 
     # NB: must add costs of central heating afterwards (EUR 400 / kWpeak, 50a,
     # 1% FOM from Fraunhofer ISE)
@@ -1662,7 +1699,6 @@ def add_biomass(network):
                  marginal_cost=costs.loc["biogas upgrading", "VOM"],
                  p_nom_extendable=True)
 
-
     # add biomass transport
     biomass_transport = create_network_topology(n, "Biomass transport ")
     # make transport in both directions
@@ -2017,8 +2053,8 @@ def restrict_technology_potential(n, tech, limit):
 
 def decentral(n):
     n.lines.drop(n.lines.index, inplace=True)
-    n.links.drop(n.links.index[n.links.carrier.isin(
-        ["DC", "B2B"])], inplace=True)
+    n.links.drop(n.links.index[n.links.carrier.isin(["DC", "B2B"])],
+                 inplace=True)
 
 
 def remove_h2_network(n):
@@ -2223,6 +2259,9 @@ if __name__ == "__main__":
 
     if options['electricity_distribution_grid']:
         insert_electricity_distribution_grid(n)
+
+    if options['gas_distribution_grid']:
+        insert_gas_distribution_grid(n)
 
     if not options["ccs"]:
         print("no CCS")

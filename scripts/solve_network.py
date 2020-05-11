@@ -380,7 +380,9 @@ if __name__ == "__main__":
             output=["results/191108-h2_pipeline_network/postnetworks/s{simpl}_{clusters}_lv{lv}_{opts}-test.nc"],
             log=dict(
                 gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_gurobi-test.log",
-                python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python-test.log"))
+                python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python-test.log",
+                solver="logs/distribution_grid/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_solver.log",
+                memory="logs/distribution_grid/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_memory.log"))
 
     tmpdir = snakemake.config['solving'].get('tmpdir')
     if tmpdir is not None:

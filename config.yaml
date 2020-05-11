@@ -2,7 +2,7 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: 'distribution_grid'
+run: 'test'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
@@ -10,7 +10,7 @@ scenario:
   lv: [1.0]   #, 1.125, 1.25, 1.5, 2.0]# or opt
   clusters: [38] #[90, 128, 181] #[45, 64, 90, 128, 181, 256] #, 362] # (2**np.r_[5.5:9:.5]).astype(int) minimum is 37
   opts: ['']  #for pypsa-eur
-  sector_opts: [Co2L0-24H-T-H-B] #,Co2L0p1-3H-T-H-B-I,Co2L0p25-3H-T-H-B-I,Co2L0p5-3H-T-H-B-I]#[Co2L0-3H-T-H-B-I-onwind0-solar3,Co2L0-3H-T-H-B-I-onwind0p125-solar3,Co2L0-3H-T-H-B-I-onwind0p25-solar3,Co2L0-3H-T-H-B-I-onwind0p50-solar3,Co2L0-3H-T-H-B-I-solar3]#,Co2L0-3H-T-H-B-I-onwind0p25-solar3]#,Co2L0p05-3H-T-H-B-I,Co2L0p10-3H-T-H-B-I,Co2L0p20-3H-T-H-B-I,Co2L0p30-3H-T-H-B-I,Co2L0p50-3H-T-H-B-I]#[Co2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0-3H-T-H,Co2L0p20-3H-T-H]   #Co2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0p20-3H-T-HCo2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0p30-3H-T-H,Co2L0p50-3H-T-H] #Co2L-3H,Co2L-3H-T,, LC-FL, LC-T, Ep-T, Co2L-T]
+  sector_opts: [Co2L0-120H-T-H-B] #,Co2L0p1-3H-T-H-B-I,Co2L0p25-3H-T-H-B-I,Co2L0p5-3H-T-H-B-I]#[Co2L0-3H-T-H-B-I-onwind0-solar3,Co2L0-3H-T-H-B-I-onwind0p125-solar3,Co2L0-3H-T-H-B-I-onwind0p25-solar3,Co2L0-3H-T-H-B-I-onwind0p50-solar3,Co2L0-3H-T-H-B-I-solar3]#,Co2L0-3H-T-H-B-I-onwind0p25-solar3]#,Co2L0p05-3H-T-H-B-I,Co2L0p10-3H-T-H-B-I,Co2L0p20-3H-T-H-B-I,Co2L0p30-3H-T-H-B-I,Co2L0p50-3H-T-H-B-I]#[Co2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0-3H-T-H,Co2L0p20-3H-T-H]   #Co2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0p20-3H-T-HCo2L-3H-T-H,Co2L0p10-3H-T-H,Co2L0p30-3H-T-H,Co2L0p50-3H-T-H] #Co2L-3H,Co2L-3H-T,, LC-FL, LC-T, Ep-T, Co2L-T]
   # Co2L will give default (5%); Co2L0p25 will give 25% CO2 emissions; Co2Lm0p05 will give 5% negative emissions
 
 
@@ -68,7 +68,7 @@ sector:
   'time_dep_hp_cop' : True
   'space_heating_fraction' : 1.0 #fraction of space heating active
   'base_load' : False
-  'retrofitting' : True
+  'retrofitting' : False
   #'retrofitting-cost_factor' : 1.0
   'retrofitting_exogenous' : False # assuming an annual natural retro-rate
   'years' : 30  # number of years from today to year of optimisation
@@ -90,7 +90,7 @@ sector:
   'methanation' : False
   'helmeth' : False
   'dac' : True
-  'fossil_gas': True
+  'fossil_gas': False
   'costs_old' : False
   'h2_costs_old': False
   'co2_vent' : True
@@ -102,6 +102,8 @@ sector:
   'use_fuel_cell_waste_heat' : True
   'electricity_distribution_grid' : True
   'electricity_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
+  'gas_distribution_grid' : True
+  'gas_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
 
 costs:
   year: 2030

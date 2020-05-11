@@ -540,7 +540,7 @@ if __name__ == "__main__":
         snakemake.config['run'] = "distribution_grid"
         snakemake.wildcards = {"lv": "1.0"}  # lv1.0, lv1.25, lvopt
         name = "elec_s_48_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
-        suffix = "_2solar"
+        suffix = "_retro_nofossil"
         name = name + suffix
         snakemake.input = Dict()
         snakemake.output = Dict(
