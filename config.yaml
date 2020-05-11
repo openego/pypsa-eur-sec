@@ -2,7 +2,7 @@ logging_level: INFO
 
 results_dir: 'results/'
 summary_dir: results
-run: 'test'
+run: 'DH_distribution_costs'
 
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
@@ -102,8 +102,10 @@ sector:
   'use_fuel_cell_waste_heat' : True
   'electricity_distribution_grid' : True
   'electricity_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
-  'gas_distribution_grid' : True
+  'gas_distribution_costs' : True
   'gas_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
+  'DH_distribution_costs' : True
+  'DH_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
 
 costs:
   year: 2030

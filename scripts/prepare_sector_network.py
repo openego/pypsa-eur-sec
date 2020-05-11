@@ -207,36 +207,27 @@ def insert_electricity_distribution_grid(network):
                  p_nom_extendable=True)
 
 
-def insert_gas_distribution_grid(network):
+def insert_gas_distribution_costs(network):
     f_costs = options['gas_distribution_grid_cost_factor']
     print("Inserting gas distribution grid with investment cost\
           factor of", f_costs)
 
-    nodes = pop_layout.index
-
-    network.madd("Bus",
-                 nodes + " gas distribution",
-                 carrier="gas distribution")
-
-    network.madd("Link",
-                 nodes + " gas distribution grid",
-                 bus0=nodes + " gas",
-                 bus1=nodes + " gas distribution",
-                 p_nom_extendable=True,
-                 p_min_pu=-1,
-                 carrier="gas distribution grid",
-                 efficiency=1,
-                 marginal_cost=0,
-                 # TODO add costs to cost.csv
-                 capital_cost=2536*f_costs)   # costs from Frauenhofer
 
     # gas boilers
     gas_b = network.links.index[network.links.carrier.str.contains("boiler")]
-    network.links.loc[gas_b, "bus0"] += " distribution"
+    network.links.loc[gas_b, "capital_cost"] += 2536*f_costs
     # micro CHPs
     mchp = network.links.index[network.links.carrier.str.contains("micro gas")]
-    network.links.loc[mchp, "bus0"] += " distribution"
+    network.links.loc[mchp, "capital_cost"] += 2536*f_costs
 
+
+def insert_DH_distribution_costs(network):
+    f_costs = options['DH_distribution_grid_cost_factor']
+    print("Inserting DH distribution grid with investment cost\
+          factor of", f_costs)
+
+    dh_links = network.links[network.links.carrier.str.contains("CHP heat")]
+    dh_links += 34004 * f_costs   # costs from Frauenhofer
 
 
 def create_network_topology(n, prefix):
@@ -2260,8 +2251,11 @@ if __name__ == "__main__":
     if options['electricity_distribution_grid']:
         insert_electricity_distribution_grid(n)
 
-    if options['gas_distribution_grid']:
-        insert_gas_distribution_grid(n)
+    if options['gas_distribution_costs']:
+        insert_gas_distribution_costs(n)
+
+    if options['DH_distribution_costs']:
+        insert_DH_distribution_costs(n)
 
     if not options["ccs"]:
         print("no CCS")
