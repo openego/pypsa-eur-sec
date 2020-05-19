@@ -161,6 +161,7 @@ def insert_electricity_distribution_grid(network):
     solar = network.generators.index[network.generators.carrier == "solar"]
     network.generators.loc[solar, "capital_cost"] = costs.at['solar-utility',
                                                              'fixed']
+    network.generators.loc[solar, "marginal_cost"] = 20  # costs from Vartiaien
 
     network.madd("Generator",
                  solar,
@@ -212,13 +213,30 @@ def insert_gas_distribution_costs(network):
     print("Inserting gas distribution grid with investment cost\
           factor of", f_costs)
 
+    nodes = network.buses[network.buses.carrier=="gas"].index
+
+    network.madd("Bus",
+                 nodes + " distribution",
+                 carrier="gas distribution")
+
+    network.madd("Link",
+                 nodes + " distribution grid",
+                 bus0=nodes,
+                 bus1=nodes + " distribution",
+                 p_nom_extendable=True,
+                 p_min_pu=-1,
+                 carrier="gas distribution grid",
+                 efficiency=1,
+                 marginal_cost=0,
+                 # TODO add costs to cost.csv
+                 capital_cost=2536*f_costs)
 
     # gas boilers
     gas_b = network.links.index[network.links.carrier.str.contains("boiler")]
-    network.links.loc[gas_b, "capital_cost"] += 2536*f_costs
+    network.links.loc[gas_b, "bus0"] += " distribution"
     # micro CHPs
     mchp = network.links.index[network.links.carrier.str.contains("micro gas")]
-    network.links.loc[mchp, "capital_cost"] += 2536*f_costs
+    network.links.loc[mchp,  "bus0"] += " distribution"
 
 
 def insert_DH_distribution_costs(network):
@@ -226,8 +244,26 @@ def insert_DH_distribution_costs(network):
     print("Inserting DH distribution grid with investment cost\
           factor of", f_costs)
 
-    dh_links = network.links[network.links.carrier.str.contains("CHP heat")]
-    dh_links += 34004 * f_costs   # costs from Frauenhofer
+    nodes = network.buses[network.buses.carrier=="urban central heat"].index
+
+    network.madd("Bus",
+                 nodes + " distribution",
+                 carrier="DH distribution")
+
+    network.madd("Link",
+                 nodes + " distribution grid",
+                 bus0=nodes,
+                 bus1=nodes + " distribution",
+                 p_nom_extendable=True,
+                 p_min_pu=-1,
+                 carrier="DH distribution grid",
+                 efficiency=1,
+                 marginal_cost=0,
+                 # TODO add costs to cost.csv
+                 capital_cost=34004 *f_costs)
+
+    dh_links = network.links.carrier.str.contains("CHP heat")
+    network.links.loc[dh_links, "bus0"] += " distribution"  # costs from Frauenhofer
 
 
 def create_network_topology(n, prefix):
@@ -331,9 +367,9 @@ def add_co2_tracking(n):
     # TODO move maximum somewhere more transparent
     n.madd("Store", ["co2 stored"],
            e_nom_extendable=True,
-           e_nom_max=2e8,  # 1e6
+           e_nom_max=1e6,
            capital_cost=20.,
-           e_cyclic=True,
+           # e_cyclic=True,
            carrier="co2 stored",
            bus="co2 stored")
 
