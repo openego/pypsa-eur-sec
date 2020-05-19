@@ -3,9 +3,10 @@ import geopandas as gpd
 import xarray as xr
 import pandas as pd
 import atlite
+import helper
 
 
-cutout = atlite.Cutout(snakemake.config['renewable']['onwind']['cutout'],
+cutout = atlite.Cutout(snakemake.config['atlite']['cutout_name'],
                        cutout_dir=snakemake.config['atlite']['cutout_dir'])
 
 
@@ -13,10 +14,9 @@ clustered_busregions_as_geopd = gpd.read_file(
     snakemake.input.regions_onshore).set_index(
         'name', drop=True)
 
-clustered_busregions = pd.Series(
-    clustered_busregions_as_geopd.geometry,
-    index=clustered_busregions_as_geopd.index)
+clustered_busregions = pd.Series(clustered_busregions_as_geopd.geometry, index=clustered_busregions_as_geopd.index)
 
+helper.clean_invalid_geometries(clustered_busregions)
 
 I = cutout.indicatormatrix(clustered_busregions)
 
