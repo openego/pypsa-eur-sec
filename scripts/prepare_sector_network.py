@@ -161,6 +161,10 @@ def insert_electricity_distribution_grid(network):
     solar = network.generators.index[network.generators.carrier == "solar"]
     network.generators.loc[solar, "capital_cost"] = costs.at['solar-utility',
                                                              'fixed']
+    # add max solar rooftop potential assuming 1kW/person
+    potential = pd.concat([pop_layout.total.rename(index = lambda x: x + " solar"),
+                           network.generators.loc[solar, "p_nom_max"]],
+                          axis=1).min(axis=1)
 
 
     network.madd("Generator",
@@ -169,7 +173,7 @@ def insert_electricity_distribution_grid(network):
                  bus=network.generators.loc[solar, "bus"] + " low voltage",
                  carrier="solar rooftop",
                  p_nom_extendable=True,
-                 p_nom_max=network.generators.loc[solar, "p_nom_max"],
+                 p_nom_max=potential,
                  marginal_cost=network.generators.loc[solar, 'marginal_cost'],
                  capital_cost=costs.at['solar-rooftop', 'fixed'],
                  efficiency=network.generators.loc[solar, 'efficiency'],
@@ -916,90 +920,6 @@ def add_wave(network, wave_cost_factor):
               p_max_pu=wave["Hebrides", wave_type])
 
 
-
-
-def insert_electricity_distribution_grid(network):
-    print("Inserting electricity distribution grid with investment cost factor of",
-          snakemake.config["sector"]['electricity_distribution_grid_cost_factor'])
-
-    nodes = pop_layout.index
-
-    network.madd("Bus",
-                 nodes+ " low voltage",
-                 carrier="low voltage")
-
-    network.madd("Link",
-                 nodes + " electricity distribution grid",
-                 bus0=nodes,
-                 bus1=nodes + " low voltage",
-                 p_nom_extendable=True,
-                 p_min_pu=-1,
-                 carrier="electricity distribution grid",
-                 efficiency=1,
-                 marginal_cost=0,
-                 capital_cost=costs.at['electricity distribution grid','fixed']*snakemake.config["sector"]['electricity_distribution_grid_cost_factor'])
-
-    loads = network.loads.index[network.loads.carrier=="electricity"]
-    network.loads.loc[loads,"bus"] += " low voltage"
-
-    bevs = network.links.index[network.links.carrier == "BEV charger"]
-    network.links.loc[bevs,"bus0"] += " low voltage"
-
-    v2gs = network.links.index[network.links.carrier == "V2G"]
-    network.links.loc[v2gs,"bus1"] += " low voltage"
-
-    hps = network.links.index[network.links.carrier.str.contains("heat pump")]
-    network.links.loc[hps,"bus0"] += " low voltage"
-
-    #set existing solar to cost of utility cost rather the 50-50 rooftop-utility
-    solar = network.generators.index[network.generators.carrier == "solar"]
-    network.generators.loc[solar,"capital_cost"] = costs.at['solar-utility','fixed']
-
-    network.madd("Generator", solar,
-                 suffix=" rooftop",
-                 bus=network.generators.loc[solar,"bus"] + " low voltage",
-                 carrier="solar rooftop",
-                 p_nom_extendable=True,
-                 p_nom_max=network.generators.loc[solar,"p_nom_max"],
-                 marginal_cost=network.generators.loc[solar, 'marginal_cost'],
-                 capital_cost=costs.at['solar-rooftop','fixed'],
-                 efficiency=network.generators.loc[solar, 'efficiency'],
-                 p_max_pu=network.generators_t.p_max_pu[solar])
-
-
-
-    network.add("Carrier","home battery")
-
-    network.madd("Bus",
-                 nodes + " home battery",
-                 carrier="home battery")
-
-    network.madd("Store",
-                 nodes + " home battery",
-                 bus=nodes + " home battery",
-                 e_cyclic=True,
-                 e_nom_extendable=True,
-                 carrier="home battery",
-                 capital_cost=costs.at['battery storage','fixed'])
-
-    network.madd("Link",
-                 nodes + " home battery charger",
-                 bus0=nodes + " low voltage",
-                 bus1=nodes + " home battery",
-                 carrier="home battery charger",
-                 efficiency=costs.at['battery inverter','efficiency']**0.5,
-                 capital_cost=costs.at['battery inverter','fixed'],
-                 p_nom_extendable=True)
-
-    network.madd("Link",
-                 nodes + " home battery discharger",
-                 bus0=nodes + " home battery",
-                 bus1=nodes + " low voltage",
-                 carrier="home battery discharger",
-                 efficiency=costs.at['battery inverter','efficiency']**0.5,
-                 marginal_cost=options['marginal_cost_storage'],
-                 p_nom_extendable=True)
-
 def add_electricity_grid_connection(network):
 
     carriers = ["onwind","solar"]
@@ -1023,13 +943,33 @@ def add_storage(network):
                  nodes + " gas",
                  carrier="gas")
 
+    network.madd("Bus",
+                 nodes + " gas Store",
+                 carrier="gas")
+
     network.madd("Store",
                  nodes + " gas Store",
-                 bus=nodes + " gas",
-                 e_nom_extendable=True,
+                 bus=nodes + " gas Store",
                  e_cyclic=True,
+                 e_nom_extendable=True,
                  carrier="gas",
-                 capital_cost=0.)
+                 capital_cost=costs.at['gas storage', 'fixed'])
+
+    network.madd("Link",
+                 nodes + " gas Store charger",
+                 bus0=nodes + " gas",
+                 bus1=nodes + " gas Store",
+                 carrier="gas Store charger",
+                 capital_cost=costs.at['gas storage charger', 'fixed'],
+                 p_nom_extendable=True)
+
+    network.madd("Link",
+                 nodes + "  gas Store discharger",
+                 bus0=nodes + " gas Store",
+                 bus1=nodes + " gas",
+                 carrier="gas Store discharger",
+                 capital_cost=costs.at['gas storage discharger', 'fixed'],
+                 p_nom_extendable=True)
 
     network.madd("Generator",
                  nodes + " fossil gas",
@@ -1038,6 +978,15 @@ def add_storage(network):
                  carrier="gas",
                  capital_cost=0.,
                  marginal_cost=78)
+
+    network.madd("Generator",
+                 nodes + " H2 import",
+                 bus=nodes + " H2",
+                 p_nom_extendable=True,
+                 carrier="H2",
+                 capital_cost=0.,
+                 marginal_cost=68)   # from wikipedia 2.50$/kg green hydrogen
+                # 1kg hydrogen contains 33.33kWh, 1$=0.91EUR
 
     network.madd("Link",
                  nodes + " H2 Electrolysis",
@@ -1130,7 +1079,6 @@ def add_storage(network):
 
     gas_links = create_network_topology(n, "gas pipeline ")
 
-    # TODO Add efficiency losses
     network.madd("Link",
                  gas_links.index,
                  bus0=gas_links.bus0 + " gas",
@@ -1138,7 +1086,7 @@ def add_storage(network):
                  p_min_pu=-1,
                  p_nom_extendable=True,
                  length=gas_links.length.values,
-                 capital_cost=5000,
+                 capital_cost=costs.at["Gasnetz", "fixed"],
                  carrier="gas pipeline")
 
     network.add("Carrier", "battery")
@@ -1490,7 +1438,7 @@ def add_heat(network):
                                                'efficiency'] * costs.at[name_type + ' resistive heater',
                                                                         'fixed'],
                          p_nom_extendable=True)
-#            if name == "urban central":
+
             network.madd("Link",
                          nodes[name] + " " + name + " gas boiler",
                          p_nom_extendable=True,
@@ -1739,6 +1687,15 @@ def add_biomass(network):
     biomass_pot_node = (biomass_potentials.loc[pop_layout.ct]
                         .set_index(pop_layout.index)
                         .mul(pop_layout.fraction, axis="index"))
+
+    if "I" not in opts:
+        print("reducing biomass potential to represent usage of indusrty")
+        industrial_demand = 1e6 * pd.read_csv(snakemake.input.industrial_demand,
+                                              index_col=0)
+        fraction = 1 - (industrial_demand["solid biomass"].sum() /
+                        biomass_pot_node["solid biomass"].sum())
+        biomass_pot_node *= fraction
+
 
     network.add("Carrier", "biogas")
     network.add("Carrier", "solid biomass")
@@ -2272,9 +2229,6 @@ if __name__ == "__main__":
         # update old pypsa-eur costs with new costs
         update_elec_costs(n, costs)
 
-    # TODO
-    costs.at['solid biomass', 'CO2 intensity'] = 0.3
-
     add_co2_tracking(n)
 
     # add_generation(n)
@@ -2360,5 +2314,21 @@ if __name__ == "__main__":
         add_electricity_grid_connection(n)
     if options['gas_distribution_grid']:
         insert_gas_distribution_costs(n)
+
+    if not options["ccs"]:
+        print("no CCS")
+        n.links = n.links[~n.links.carrier.str.contains("CCS")]
+
+    if not options["fossil_gas"]:
+        print("no fossil gas import")
+        n.generators = n.generators[n.generators.carrier!="gas"]
+
+    if options["no_decentral_gas"]:
+        print("no decentral gas")
+        drop = ['residential rural gas boiler', 'services rural gas boiler',
+                'residential urban decentral gas boiler',
+                'services urban decentral gas boiler']
+        n.links = n.links[~n.links.carrier.isin(drop)]
+
 
     n.export_to_netcdf(snakemake.output[0])

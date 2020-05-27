@@ -102,21 +102,13 @@ def assign_location(n):
             names = ifind.index[ifind == i]
 
             c.df.loc[names, 'location'] = names.str[:i]
-<<<<<<< HEAD
 
 
 # ----------------- PLOT FUNCTIONS --------------------------------------------
 def plot_map(network, components=["links", "stores", "storage_units", "generators"],
              bus_size_factor=1.7e10, transmission=False):
 
-=======
 
-
-# ----------------- PLOT FUNCTIONS --------------------------------------------
-def plot_map(network, components=["links", "stores", "storage_units", "generators"],
-             bus_size_factor=1.7e10, transmission=False):
-
->>>>>>> master
     n = network.copy()
     assign_location(n)
     # Drop non-electric buses so they don't clutter the plot

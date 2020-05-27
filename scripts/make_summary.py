@@ -653,7 +653,7 @@ if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
         os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
-        name = "elec_s_38_lv1.0__Co2L0-3H-T-H"
+        name = "elec_s_48_lv1.0__Co2L0-3H-T-H"
         from vresutils import Dict
         import yaml
         snakemake = Dict()
@@ -662,8 +662,8 @@ if __name__ == "__main__":
 
         # overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "distribution_costs"
-        snakemake.config['scenario']['clusters'] = [38]
+        snakemake.config["run"] = "new_DEA"
+        snakemake.config['scenario']['clusters'] = [48]
         snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, 2.0, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
 
@@ -686,9 +686,10 @@ if __name__ == "__main__":
             # "noretro_importgas",
             # "retro_noimportgas",
             # "retro_importgas",
-            "DH_dist_cost",
-            "gas_dist_cost",
-            # "2solar",
+            "retro",
+            "retro_nodecentralgas",
+            "noretro",
+            "noretro_nodecentralgas",
             # "retro_tes_nodecentralgas_fossil",
             # "noretro_tes_nodecentralgas_fossil",
             # "retro_fossilhighprice",
