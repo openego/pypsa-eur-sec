@@ -1,4 +1,3 @@
-
 import cartopy.crs as ccrs
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, Ellipse
@@ -108,7 +107,6 @@ def assign_location(n):
 def plot_map(network, components=["links", "stores", "storage_units", "generators"],
              bus_size_factor=1.7e10, transmission=False):
 
-
     n = network.copy()
     assign_location(n)
     # Drop non-electric buses so they don't clutter the plot
@@ -117,10 +115,7 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
     costs = pd.DataFrame(index=n.buses.index)
 
     for comp in components:
-<<<<<<< HEAD
         print(comp)
-=======
->>>>>>> master
         df_c = getattr(n, comp)
         df_c["nice_group"] = df_c.carrier.map(rename_techs_tyndp)
 
@@ -130,28 +125,15 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
                    .groupby([df_c.location, df_c.nice_group]).sum()
                    .unstack().fillna(0.))
         costs = pd.concat([costs, costs_c], axis=1)
-<<<<<<< HEAD
 
         print(comp, costs)
     costs = costs.groupby(costs.columns, axis=1).sum()
 
     costs.drop(list(costs.columns[(costs == 0.).all()]), axis=1, inplace=True)
 
-=======
-
-        print(comp, costs)
-    costs = costs.groupby(costs.columns, axis=1).sum()
-
-    costs.drop(list(costs.columns[(costs == 0.).all()]), axis=1, inplace=True)
-
->>>>>>> master
     new_columns = ((preferred_order & costs.columns)
                    .append(costs.columns.difference(preferred_order)))
     costs = costs[new_columns]
-
-    for item in new_columns:
-        if item not in snakemake.config['plotting']['tech_colors']:
-            print("Warning!",item,"not in config/plotting/tech_colors")
 
     costs = costs.stack()  # .sort_index()
 
@@ -213,10 +195,8 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
 
     n.plot(bus_sizes=costs / bus_size_factor,
            bus_colors=snakemake.config['plotting']['tech_colors'],
-           line_colors=ac_color,
-           link_colors=dc_color,
-           line_widths=line_widths / linewidth_factor,
-           link_widths=link_widths / linewidth_factor,
+           line_colors=dict(Line=ac_color, Link=dc_color),
+           line_widths=line_widths_exp / linewidth_factor,
            ax=ax,  boundaries=(-10, 30, 34, 70),
            color_geomap={'ocean': 'lightblue', 'land': "palegoldenrod"})
 
@@ -259,9 +239,9 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
 def plot_carrier_map(network, carrier="H2"):
 
     if carrier == "H2":
-        generation = "H2 Electrolysis"
+        generation = ["H2 Electrolysis"]
     elif carrier == "gas":
-        generation = "helmeth"
+        generation = ["helmeth", "Sabatier"]
     else:
         print("unkown carrier, assuming H2")
         generation = "H2 Electrolysis"
@@ -277,14 +257,15 @@ def plot_carrier_map(network, carrier="H2"):
     # Drop non-electric buses so they don't clutter the plot
     n.buses.drop(n.buses.index[n.buses.carrier != "AC"], inplace=True)
 
-    elec = n.links.index[n.links.carrier == generation]
+    elec = n.links.index[n.links.carrier.isin(generation)]
 
-    factor_bus = len(str(int(n.links.loc[elec, "p_nom_opt"].max())))
+    cap = n.links.loc[elec, "p_nom_opt"]
+    cap = cap.groupby(cap.index.str[:5]).sum()
+    factor_bus = len(str(int(cap.max())))
     bus_size_factor = 7**factor_bus
 
     bus_sizes = pd.Series(0., index=n.buses.index)
-    bus_sizes.loc[elec.str.replace(" "+generation, "")] = \
-                        n.links.loc[elec, "p_nom_opt"].values / bus_size_factor
+    bus_sizes.loc[cap.index] = cap / bus_size_factor
 
     # make a fake MultiIndex so that area is correct for legend
     bus_sizes.index = pd.MultiIndex.from_product(
@@ -330,7 +311,7 @@ def plot_carrier_map(network, carrier="H2"):
                    loc="upper left", bbox_to_anchor=(0.01, 1.01),
                    labelspacing=1.5,
                    framealpha=1.,
-                   title=generation + ' capacity',
+                   title=carrier + ' capacity',
                    handler_map=make_handler_map_to_scale_circles_as_in(ax))
     ax.add_artist(l2)
 
@@ -556,10 +537,10 @@ if __name__ == "__main__":
         snakemake = Dict()
         with open('config.yaml') as f:
             snakemake.config = yaml.safe_load(f)
-        snakemake.config['run'] = "distribution_grid"
+        snakemake.config['run'] = "retro_vs_noretro"
         snakemake.wildcards = {"lv": "1.0"}  # lv1.0, lv1.25, lvopt
         name = "elec_s_48_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
-        suffix = "_retro_nofossil"
+        suffix = "_retro"
         name = name + suffix
         snakemake.input = Dict()
         snakemake.output = Dict(

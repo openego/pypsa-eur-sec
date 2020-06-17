@@ -7,7 +7,7 @@ CCGT,efficiency,0.6,per unit,"DEA, technology_data_for_el_and_dh_-_0009.xlsx","0
 CCGT,investment,800.0,EUR/kW,"DEA, technology_data_for_el_and_dh_-_0009.xlsx","05 Gas turb. CC, steam extract.:  Nominal investment"
 CCGT,lifetime,25.0,years,"DEA, technology_data_for_el_and_dh_-_0009.xlsx","05 Gas turb. CC, steam extract.:  Technical lifetime"
 DAC,FOM,4.0,%/year,Fasihi, from old pypsa cost assumptions
-DAC,investment,250.0,EUR/(tCO2/a),Fasihi doi:10.3390/su9020306/Climeworks, from old pypsa cost assumptions
+DAC,investment,210.5,EUR/(tCO2/a),Fasihi,
 DAC,lifetime,30.0,years,Fasihi, from old pypsa cost assumptions
 Fischer-Tropsch,FOM,3.0,%/year,doi:10.3390/su9020306, from old pypsa cost assumptions
 Fischer-Tropsch,efficiency,0.8,per unit,TODO, from old pypsa cost assumptions
@@ -48,12 +48,12 @@ SMR CCS,FOM,5.4,%/year,https://www.gov.uk/government/publications/hydrogen-suppl
 SMR CCS,efficiency,0.67,per unit,https://www.gov.uk/government/publications/hydrogen-supply-chain-evidence-base; slide 42 assumption for 2030; CCS uses 10% of gas, from old pypsa cost assumptions
 SMR CCS,investment,1032.0,EUR/kWCH4,https://www.gov.uk/government/publications/hydrogen-supply-chain-evidence-base; slide 42 assumption for 2030; GBP 466 exchange 1.16; CCS costed at 300 EUR/tCO2/a, from old pypsa cost assumptions
 SMR CCS,lifetime,25.0,years,TODO, from old pypsa cost assumptions
-battery inverter,FOM,0.34,%/year,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Fixed O&M
+battery inverter,FOM,0.9,%/year,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Fixed O&M
 battery inverter,efficiency,0.96,per unit,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Round trip efficiency DC
-battery inverter,investment,160.0,EUR/kW,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Output capacity expansion cost investment
-battery inverter,lifetime,25.0,years,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Technical lifetime
-battery storage,investment,142.0,EUR/kWh,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Energy storage expansion cost investment
-battery storage,lifetime,25.0,years,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Technical lifetime
+battery inverter,investment,60.0,EUR/kW,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Output capacity expansion cost investment
+battery inverter,lifetime,30.0,years,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Technical lifetime
+battery storage,investment,75.0,EUR/kWh,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Energy storage expansion cost investment
+battery storage,lifetime,30.0,years,"DEA, technology_data_catalogue_for_energy_storage.xlsx",:  Technical lifetime
 biogas,fuel,59.0,EUR/MWhth,JRC and Zappa, from old pypsa cost assumptions
 biogas upgrading,FOM,2.51,%/year,"DEA, data_sheets_for_renewable_fuels_-_0003.xlsx","82 Biogas, upgrading:  Fixed O&M "
 biogas upgrading,VOM,3.68,EUR/MWh input,"DEA, data_sheets_for_renewable_fuels_-_0003.xlsx","82 Biogas, upgrading:  Variable O&M"
@@ -168,11 +168,13 @@ decentral air-sourced heat pump,discount rate,0.04,per unit,Palzer thesis, from 
 decentral air-sourced heat pump,efficiency,3.8,per unit,"DEA, technologydatafor_heating_installations_marts_2018.xlsx","207.3 Air to water existing:  Heat efficiency, annual average, net, radiators, existing one family house"
 decentral air-sourced heat pump,investment,760.0,EUR/kW_th,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",207.3 Air to water existing:  Specific investment
 decentral air-sourced heat pump,lifetime,18.0,years,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",207.3 Air to water existing:  Technical lifetime
-decentral gas boiler,FOM,10.77,%/year,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",202 Natural gas boiler:  Fixed O&M
+decentral gas boiler,FOM,6.73,%/year,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",202 Natural gas boiler:  Fixed O&M
 decentral gas boiler,discount rate,0.04,per unit,Palzer thesis, from old pypsa cost assumptions
 decentral gas boiler,efficiency,0.99,per unit,"DEA, technologydatafor_heating_installations_marts_2018.xlsx","202 Natural gas boiler:  Total efficiency, annual average, net"
-decentral gas boiler,investment,167.82,EUR/kW_th,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",202 Natural gas boiler:  Possible additional specific investment
+decentral gas boiler,investment,268.51,EUR/kW_th,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",202 Natural gas boiler:  Specific investment
 decentral gas boiler,lifetime,20.0,years,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",202 Natural gas boiler:  Technical lifetime
+decentral gas boiler connection,investment,167.82,EUR/kW_th,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",:  Possible additional specific investment
+decentral gas boiler connection,lifetime,50.0,years,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",:  Technical lifetime
 decentral ground-sourced heat pump,FOM,1.99,%/year,"DEA, technologydatafor_heating_installations_marts_2018.xlsx",207.7 Ground source existing:  Fixed O&M
 decentral ground-sourced heat pump,discount rate,0.04,per unit,Palzer thesis, from old pypsa cost assumptions
 decentral ground-sourced heat pump,efficiency,4.05,per unit,"DEA, technologydatafor_heating_installations_marts_2018.xlsx","207.7 Ground source existing:  Heat efficiency, annual average, net, radiators, existing one family house"

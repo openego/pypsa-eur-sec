@@ -242,6 +242,8 @@ def plot_balances():
 
     for k,v in balances.items():
 
+
+        print(k)
         df = balances_df.loc[v]
         df = df.groupby(df.index.get_level_values(2)).sum()
 
@@ -266,13 +268,14 @@ def plot_balances():
         if df.empty:
             continue
 
+        # TODO remove following line later again, typo
+        df.rename(index={"H":"H2"}, inplace=True)
         new_index = (preferred_order&df.index).append(df.index.difference(preferred_order))
 
         new_columns = df.columns.sort_values()
 
         fig, ax = plt.subplots()
         fig.set_size_inches((12,8))
-
         df.loc[new_index,new_columns].T.plot(kind="bar",ax=ax,stacked=True,color=[snakemake.config['plotting']['tech_colors'][i] for i in new_index])
 
 
@@ -309,14 +312,14 @@ if __name__ == "__main__":
             snakemake.config = yaml.safe_load(f)
         snakemake.input = Dict()
         snakemake.output = Dict()
-        snakemake.config['run'] = "new_DEA"
+        snakemake.config['run'] = "all"
 
         for item in ["costs", "energy", "balances"]:
             snakemake.input[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=snakemake.config['run'],item=item)
             snakemake.output[item] = snakemake.config['summary_dir'] + '/{name}/graphs/{item}.pdf'.format(name=snakemake.config['run'],item=item)
 
     plot_costs()
-    snakemake.input.balances =  'results/new_DEA/csvs/supply_energy.csv'
+    snakemake.input.balances =  'results/{}/csvs/supply_energy.csv'.format(snakemake.config['run'])
     plot_energy()
 
     plot_balances()

@@ -352,7 +352,7 @@ def add_co2_tracking(n):
                bus0="co2 atmosphere",
                bus1="co2 stored",
                carrier="DAC",
-               marginal_cost=100.,
+               marginal_cost=210.50,   # from Fasihi for 2050
                efficiency=1.,
                p_nom_extendable=True)
 
@@ -980,12 +980,12 @@ def add_storage(network):
                  marginal_cost=78)
 
     network.madd("Generator",
-                 nodes + " H2 import",
-                 bus=nodes + " H2",
-                 p_nom_extendable=True,
-                 carrier="H2",
-                 capital_cost=0.,
-                 marginal_cost=68)   # from wikipedia 2.50$/kg green hydrogen
+                  nodes + " H2 import",
+                  bus=nodes + " H2",
+                  p_nom_extendable=True,
+                  carrier="H2",
+                  capital_cost=0.,
+                  marginal_cost=68)   # from wikipedia 2.50$/kg green hydrogen
                 # 1kg hydrogen contains 33.33kWh, 1$=0.91EUR
 
     network.madd("Link",
@@ -1439,6 +1439,15 @@ def add_heat(network):
                                                                         'fixed'],
                          p_nom_extendable=True)
 
+            # capital cost gas boiler
+            capital_cost=costs.at[name_type + ' gas boiler',
+                      'efficiency'] * costs.at[name_type + ' gas boiler',
+                                               'fixed']
+            # add connection costs for decentral gas boilers
+            if name_type == "decentral":
+                capital_cost += costs.at['decentral gas boiler connection',
+                                         'fixed']
+
             network.madd("Link",
                          nodes[name] + " " + name + " gas boiler",
                          p_nom_extendable=True,
@@ -1450,9 +1459,7 @@ def add_heat(network):
                                              'efficiency'],
                          efficiency2=costs.at['gas',
                                               'CO2 intensity'],
-                         capital_cost=costs.at[name_type + ' gas boiler',
-                                               'efficiency'] * costs.at[name_type + ' gas boiler',
-                                                                        'fixed'])
+                         capital_cost=capital_cost)
 
         if options["solar_thermal"]:
 
@@ -1694,7 +1701,7 @@ def add_biomass(network):
                                               index_col=0)
         fraction = 1 - (industrial_demand["solid biomass"].sum() /
                         biomass_pot_node["solid biomass"].sum())
-        biomass_pot_node *= fraction
+        biomass_pot_node["solid biomass"] *= fraction
 
 
     network.add("Carrier", "biogas")
@@ -2323,6 +2330,9 @@ if __name__ == "__main__":
         print("no fossil gas import")
         n.generators = n.generators[n.generators.carrier!="gas"]
 
+    if not options["h2_import"]:
+        print("no h2 import")
+        n.generators = n.generators[n.generators.carrier!="H2"]
     if options["no_decentral_gas"]:
         print("no decentral gas")
         drop = ['residential rural gas boiler', 'services rural gas boiler',

@@ -662,47 +662,27 @@ if __name__ == "__main__":
 
         # overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "new_DEA"
+        snakemake.config["run"] = "all"
         snakemake.config['scenario']['clusters'] = [48]
         snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, 2.0, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
 
-#            "base_load_notes",
-#            "base_load_tes",
-#            "noretro_notes",
-#            "noretro_tes",
+          "noretro_baseload",
+          # "baseload_noretro_tes_old",
+          "retro_baseload",
+          # "baseload_retro_tes_old",
 #
-#             "fuel_cell_heat",
-#             "fuel_cell_heat_costs2050_nocentralgas",
-#             "fuel_cell_heat_noretro",
-#            "nogas_noretro_notes",
-#            "nogas_noretro_tes",
-#            "nogas_notes",
-#            "nogas_tes",
-#            "retro_notes",
-#             "woodstove_deacosts",
-#           "nogas_noretro_notes",
-            # "noretro_noimportgas",
-            # "noretro_importgas",
-            # "retro_noimportgas",
-            # "retro_importgas",
             "retro",
-            "retro_nodecentralgas",
+            # "retro_notes",
             "noretro",
-            "noretro_nodecentralgas",
-            # "retro_tes_nodecentralgas_fossil",
-            # "noretro_tes_nodecentralgas_fossil",
-            # "retro_fossilhighprice",
-           # "cheaphelmeth_nofossil",
-          # "retro_tes_nofossil",
-#           "noretro_notes",
-#           "nogas_noretro_tes",
-#           "noretro_tes",
-#           "nogas_notes",
-#           "retro_notes",
-#           "nogas_tes",
-#           "retro_tes",
+            # "noretro_notes",
 
+            "noretro_nodecentralgas",
+            "retro_nodecentralgas",
+            # "noretro_tes_nodecentralgas_old",
+            # "retro_tes_nodecentralgas_old",
+
+            "noretro_imports",
 #            "2030_costs",
 #            "2040_costs",
 #            "2050_costs",
