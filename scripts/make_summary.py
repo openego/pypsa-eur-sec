@@ -662,27 +662,32 @@ if __name__ == "__main__":
 
         # overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "all"
+        snakemake.config["run"] = "retro_vs_noretro"
         snakemake.config['scenario']['clusters'] = [48]
         snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, 2.0, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
 
-          "noretro_baseload",
+          # "noretro_baseload",
           # "baseload_noretro_tes_old",
-          "retro_baseload",
+          # "retro_baseload",
           # "baseload_retro_tes_old",
 #
-            "retro",
+            "retro_new",
+            "retro_new2",
+            "retro_new3",
+            "retro_new4",
+            # "retro_other",
             # "retro_notes",
-            "noretro",
+            # "noretro",
+            # "noretro_other",
             # "noretro_notes",
 
-            "noretro_nodecentralgas",
-            "retro_nodecentralgas",
+            # "noretro_nodecentralgas",
+            # "retro_nodecentralgas",
             # "noretro_tes_nodecentralgas_old",
             # "retro_tes_nodecentralgas_old",
 
-            "noretro_imports",
+            # "noretro_imports",
 #            "2030_costs",
 #            "2040_costs",
 #            "2050_costs",

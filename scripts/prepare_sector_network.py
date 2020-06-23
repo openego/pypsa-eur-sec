@@ -1631,13 +1631,11 @@ def add_heat(network):
                         space_peak_c = space_heat_demand_c.max()
                         if space_peak_c == 0:
                             continue
-                        space_pu_c = (
-                            space_heat_demand_c /
-                            space_peak_c).to_frame(
-                            name=node)
+                        space_pu_c = (space_heat_demand_c /
+                                      space_peak_c).to_frame(name=node)
 
                         dE = retro_cost.loc[(ct, sec), ("dE")]
-                        dE_diff = abs(dE.diff()).fillna(dE.iloc[0])
+                        dE_diff = abs(dE.diff()).fillna(1-dE.iloc[0])
                         cost_c = retro_cost.loc[(ct, sec), ("cost")]
                         capital_cost = cost_c * square_metres_c / \
                             ((1 - dE) * space_peak_c)
@@ -1660,8 +1658,7 @@ def add_heat(network):
                                 type=carrier,
                                 carrier="retrofitting",
                                 p_nom_extendable=True,
-                                p_nom_max=(
-                                    1 - dE_diff[strength]) * space_peak_c,
+                                p_nom_max=dE_diff[strength] * space_peak_c,
                                 dE=dE_diff[strength],
                                 p_max_pu=space_pu_c,
                                 p_min_pu=space_pu_c,
@@ -2155,7 +2152,7 @@ if __name__ == "__main__":
                 clusters='38',
                 lv='2',
                 opts='Co2L-3H',
-                sector_opts="[Co2L0p0-24H-T-H-B-I]"),
+                sector_opts="[Co2L0p0-3h-T-H-B-I]"),
             input=dict(
                 network='../pypsa-eur/networks/{network}_s{simpl}_{clusters}.nc',
                 energy_totals_name='data/energy_totals.csv',

@@ -35,9 +35,9 @@ tax_weighting = False   # weight costs depending on taxes in countries
 construction_index = True   # weight costs depending on costruction_index
 plot = False
 
-l_strength = ["0.04", "0.08"]  # additional insulation thickness
+l_strength = ["0.04", "0.16"]  # additional insulation thickness
 # strenght of relative retrofitting depending on the component
-l_weight = pd.DataFrame({"weight": [4, 2, 2, 0.5]},  # [4,2,2,0.5]
+l_weight = pd.DataFrame({"weight": [4, 2, 2, 0.2]},
                         index=["Roof", "Walls", "Floor", "Windows"])
 
 # mapping missing countries by neighbours
@@ -95,7 +95,7 @@ country_iso_dic.update({'Norway': 'NO',
 average_surface = (pd.read_csv(snakemake.input.average_surface,
                                nrows=3,
                                header=1,
-                               index_col=0) .rename({'Single/two family house': 'Single family- Terraced houses',
+                               index_col=0).rename({'Single/two family house': 'Single family- Terraced houses',
                                                      'Large apartment house': 'Multifamily houses',
                                                      'Apartment house': 'Appartment blocks'},
                                                     axis="index")).iloc[:,
@@ -171,7 +171,11 @@ if tax_weighting:
     tax_w.rename(index=country_iso_dic, inplace=True)
     tax_w = tax_w.apply(pd.to_numeric, errors='coerce').iloc[:, 0]
     tax_w.dropna(inplace=True)
-
+# %% clean data
+# smallest possible today u values for windows 0.8 (passive house standard)
+# maybe the u values for the glass and not the whole window including frame
+# for those types assumed in the dataset
+u_values[(u_values.type=="Windows") & (u_values.value<0.8)] = 0.8
 # %% ********** (3) CALCULATE COST-ENERGY-CURVES ****************************
 
 energy_saved = u_values[['country', 'sector', 'subsector', 'bage', 'type']]
@@ -180,7 +184,7 @@ costs = u_values[['country', 'sector', 'subsector', 'bage', 'type']]
 # for missing weighting of surfaces of building types assume Apartment blocks
 u_values["assumed_subsector"] = u_values.subsector
 u_values.assumed_subsector[~u_values.subsector.isin(
-    average_surface.index)] = 'Appartment blocks'
+    average_surface.index)] = 'Multifamily houses' #'Appartment blocks'
 
 for l in l_strength:
     u_values[l] = u_values.apply(lambda x:
@@ -258,7 +262,7 @@ area_tot.to_csv(snakemake.output.floor_area)
 if plot:
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    
+
     for ct in ["DE", "SE", "BG"]:
         dE = (res.loc[(ct, "tot"), "dE"] * 100)
         cost = res.loc[(ct, "tot"), "cost"]
@@ -277,7 +281,7 @@ if plot:
         df.columns = ["dE", "cost/m²"]
         df.plot(x="dE", y="cost/m²", grid=True, label=ct, ax=ax, legend=False,
                 alpha=0.2)
-        
+
         plt.ylabel("Euro/m²")
         plt.xlabel("energy demand in % of unrefurbished")
     path = "/home/ws/bw0928/Dokumente/own_projects/retrofitting_paper/figures/introduction/"
@@ -310,3 +314,5 @@ if 'snakemake' not in globals():
     )
     with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
         snakemake.config = yaml.safe_load(f)
+    os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
+
