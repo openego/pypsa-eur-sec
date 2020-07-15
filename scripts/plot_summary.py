@@ -136,6 +136,12 @@ def plot_costs():
         df.index.difference(preferred_order))
 
     new_columns = df.sum().sort_values().index
+    df = df.reindex(columns=new_columns)
+
+    df = df.droplevel(level=0, axis=1)
+    new_columns = df.columns.get_level_values(1) + " "+ df.columns.get_level_values(0)
+    new_columns = new_columns.str.replace(" 1.0", "")
+    df.columns = new_columns
 
     fig, ax = plt.subplots()
     fig.set_size_inches((9, 5))
@@ -157,11 +163,11 @@ def plot_costs():
 
     ax.grid(axis="y", zorder=0)
 
-    ax.legend(handles, labels, ncol=2, bbox_to_anchor=(1,1))
+    ax.legend(handles, labels, ncol=4, loc='lower left', bbox_to_anchor= (0.0, 1.01, 0.0, 0.9))
 
-    fig.tight_layout()
+    # fig.tight_layout()
 
-    fig.savefig(snakemake.output.costs, transparent=True)
+    fig.savefig(snakemake.output.costs, transparent=True, bbox_inches="tight")
 
 
 def plot_energy():
@@ -312,7 +318,7 @@ if __name__ == "__main__":
             snakemake.config = yaml.safe_load(f)
         snakemake.input = Dict()
         snakemake.output = Dict()
-        snakemake.config['run'] = "retro_vs_noretro"
+        snakemake.config['run'] = "different_weather_years"
 
         for item in ["costs", "energy", "balances"]:
             snakemake.input[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=snakemake.config['run'],item=item)

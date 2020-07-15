@@ -2149,7 +2149,7 @@ if __name__ == "__main__":
             wildcards=dict(
                 network='elec',
                 simpl='',
-                clusters='38',
+                clusters='48',
                 lv='2',
                 opts='Co2L-3H',
                 sector_opts="[Co2L0p0-3h-T-H-B-I]"),

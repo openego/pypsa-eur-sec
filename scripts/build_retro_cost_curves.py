@@ -30,15 +30,19 @@ pd.options.mode.chained_assignment = None
 k = 0.035   # thermal conductivity standard value
 interest_rate = 0.04
 
-annualise_cost = True  # annualise the investment costs
+annualise_cost = False  # annualise the investment costs
 tax_weighting = False   # weight costs depending on taxes in countries
 construction_index = True   # weight costs depending on costruction_index
-plot = False
+plot = True
 
-l_strength = ["0.04", "0.16"]  # additional insulation thickness
+l_strength = ["0.0025", "0.01", "0.015", "0.02", "0.03", "0.04", "0.06", "0.09", "0.095",
+              "0.1", "0.11", "0.15", "0.2", "0.3", "0.4", "0.5"]
+# ["0.0025", "0.01", "0.015", "0.02", "0.03", "0.04", "0.06", "0.09", "0.095",
+#               "0.1", "0.11", "0.15", "0.2", "0.3", "0.4", "0.5"] #["0.09", "0.2"]  # additional insulation thickness
 # strenght of relative retrofitting depending on the component
-l_weight = pd.DataFrame({"weight": [4, 2, 2, 0.2]},
-                        index=["Roof", "Walls", "Floor", "Windows"])
+# determined by historical data of insulation thickness for retrofitting
+l_weight = pd.DataFrame({"weight": [1.95, 1.48, 1.]},
+                        index=["Roof", "Walls", "Floor"])
 
 # mapping missing countries by neighbours
 map_for_missings = {
@@ -52,6 +56,19 @@ map_for_missings = {
     "PL": ["DE", "CZ", "HR"]
     }  # TODO: missing u-values of Poland should be added from eurostat
 
+# windows
+def window_limit(l):
+    return -20*l + 5.3
+
+def u_retro(l):
+    return max(-4.9*l + 1.781, 0.8)
+# data = ([3.5]*int(0.5*len(l_strength))) + ([1.3]*int(0.5*len(l_strength)))
+u_w_l = pd.Series([float(l) for l in l_strength], index=l_strength)
+u_w_l = u_w_l.apply(lambda x: window_limit(x))
+
+u_w = pd.Series([float(l) for l in l_strength], index=l_strength)
+u_w = u_w.apply(lambda x: u_retro(x))
+# u_w_l = pd.Series([3.5, 1.3], index=l_strength)
 # %% ************ (2) DATA ***************************************************
 
 # building data --------------------------------------------------------------
@@ -152,11 +169,27 @@ cost_retro = pd.read_csv(snakemake.input.cost_germany,
 cost_retro.index = cost_retro.index.str.capitalize()
 cost_retro.rename(index={"Window": "Windows", "Wall": "Walls"}, inplace=True)
 
+def window_cost(u):
+    return -83.1851*u+291.548
+
+# windows
+# u_window = ([1.34]*int(0.5*len(l_strength))) + ([0.8]*int(0.5*len(l_strength)))
+u_window = u_w
+cost_window = u_w.apply(lambda x: window_cost(x))
+windows = pd.DataFrame({'u_values': u_window, 'costs': cost_window},
+                       index=l_strength)
+# windows = pd.DataFrame({'u_values': [1.34, 0.8], 'costs': [180.08, 225]},
+#                        index=l_strength)
+
 if annualise_cost:
+    windows["costs"] = windows["costs"].apply(lambda x: x * interest_rate /
+                     (1 - (1 + interest_rate)
+                      ** -cost_retro.loc["Windows", "life_time"]))
     cost_retro = (cost_retro[["cost_fix", "cost_var"]]
                   .apply(lambda x: x * interest_rate /
                          (1 - (1 + interest_rate)
                           ** -cost_retro.loc[x.index, "life_time"])))
+
 
 if construction_index:
     cost_w = pd.read_csv(snakemake.input.construction_index,
@@ -175,7 +208,7 @@ if tax_weighting:
 # smallest possible today u values for windows 0.8 (passive house standard)
 # maybe the u values for the glass and not the whole window including frame
 # for those types assumed in the dataset
-u_values[(u_values.type=="Windows") & (u_values.value<0.8)] = 0.8
+u_values[(u_values.type=="Windows") & (u_values.value<0.8)]["value"] = 0.8
 # %% ********** (3) CALCULATE COST-ENERGY-CURVES ****************************
 
 energy_saved = u_values[['country', 'sector', 'subsector', 'bage', 'type']]
@@ -189,8 +222,9 @@ u_values.assumed_subsector[~u_values.subsector.isin(
 for l in l_strength:
     u_values[l] = u_values.apply(lambda x:
                                  k / ((k / x.value) +
-                                      (float(l) * l_weight.loc[x.type][0])),
-                                 axis=1)
+                                      (float(l) * l_weight.loc[x.type][0]))
+                                 if x.type!="Windows"
+                             else (min(x.value, windows.loc[l, "u_values"]) if x.value>u_w_l[l] else x.value), axis=1)
     energy_saved[l] = u_values.apply(lambda x:
                                      x[l] / x.value *
                                      average_surface_w.loc[x.assumed_subsector, x.type],
@@ -201,7 +235,14 @@ for l in l_strength:
                                          l_weight.loc[x.type][0] +
                                          cost_retro.loc[x.type, "cost_fix"]) *
                               average_surface.loc[x.assumed_subsector, x.type] /
-                              average_surface.loc[x.assumed_subsector, "surface"], axis=1)
+                              average_surface.loc[x.assumed_subsector, "surface"]
+                              if x.type!="Windows"
+                          else windows.loc[l, "costs" ] *
+                              average_surface.loc[x.assumed_subsector, x.type] /
+                              average_surface.loc[x.assumed_subsector, "surface"] , axis=1)
+    # no retrofitting because already high standard
+    no_retro = u_values[u_values.value==u_values[l]].index
+    costs.loc[no_retro, l] = 0
 
 # energy and costs per country, sector, subsector and year
 e_tot = energy_saved.groupby(['country', 'sector', 'subsector', 'bage']).sum()
@@ -259,21 +300,58 @@ res.to_csv(snakemake.output.retro_cost)
 area_tot.to_csv(snakemake.output.floor_area)
 
 # %% --- plot -------------------------------------------------------------
+color_ct = {"BG":"crimson", "DE":"seagreen", "SE":"mediumblue"}
 if plot:
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    for ct in ["DE", "SE", "BG"]:
+    for ct in ["BG", "DE", "SE"]:
         dE = (res.loc[(ct, "tot"), "dE"] * 100)
         cost = res.loc[(ct, "tot"), "cost"]
         df = pd.concat([dE, cost], axis=1)
         df.columns = ["dE", "cost/m²"]
-        df.plot(x="dE", y="cost/m²", grid=True, label=ct, ax=ax, linewidth=2)
+        df.plot(x="dE", y="cost/m²", grid=True, label=ct, ax=ax, linewidth=2.5,
+                color=color_ct[ct])
 #        plt.fill_between()
         plt.xlim([0, 100])
 #        plt.ylim([0, 7])
 
+    # ax.yaxis.grid(zorder=0)
+    # ax.set_facecolor('floralwhite')
 
+# ---------------
+    # points of stepwise linearisation
+    p1 = [100, 0]
+    p2 = [res.loc[("DE", "tot"), "dE"].loc["0.09"]*100,
+          res.loc[("DE", "tot"), "cost"].loc["0.09"]]
+    p3 = [res.loc[("DE", "tot"), "dE"].loc["0.2"]*100,
+          res.loc[("DE", "tot"), "cost"].loc["0.2"]]
+
+    # plot linear line
+    plt1, = plt.plot([p1[0],p2[0]], [p1[1], p2[1]], color=color_ct["DE"],
+                      linestyle='--', linewidth=2)
+    # plt.legend([plt1],["linear"])
+    plt.plot([p2[0], p3[0]], [p2[1], p3[1]], color=color_ct["DE"],
+              linestyle='--', marker='*', linewidth=2, markersize=10)
+
+    # add arrows and text
+    ax.annotate('moderate', xy=(p2), xytext=(p2[0]+32, p2[1]+140),
+            arrowprops=dict(facecolor='black', shrink=0.08, width=0.1,
+                            headwidth=5, headlength=5))
+
+    ax.annotate('moderate', xy=(p1), xytext=(p2[0]+32, p2[1]+140),
+            arrowprops=dict(facecolor='black', shrink=0.08, width=0.1,
+                            headwidth=5, headlength=5))
+
+    ax.annotate('ambitious', xy=(p3), xytext=(p3[0]+30, p3[1]+240),
+        arrowprops=dict(facecolor='black', shrink=0.08, width=0.1, headwidth=5,
+                        headlength=5))
+
+    ax.annotate('ambitious', xy=(p2), xytext=(p3[0]+30, p3[1]+240),
+        arrowprops=dict(facecolor='black', shrink=0.08, width=0.1, headwidth=5,
+                        headlength=5))
+#-----------
+    # other countries in the background
     for ct in res.index.levels[0]:
         dE = (res.loc[(ct, "tot"), "dE"] * 100)
         cost = res.loc[(ct, "tot"), "cost"]
@@ -284,8 +362,11 @@ if plot:
 
         plt.ylabel("Euro/m²")
         plt.xlabel("energy demand in % of unrefurbished")
+        plt.ylim([0, 630])
+
+
     path = "/home/ws/bw0928/Dokumente/own_projects/retrofitting_paper/figures/introduction/"
-    plt.savefig(path + "energy_cost_curve.pdf", bbox_inches="tight")
+    plt.savefig(path + "energy_cost_curve_points.pdf", bbox_inches="tight")
 # %% for testing
 if 'snakemake' not in globals():
     import yaml

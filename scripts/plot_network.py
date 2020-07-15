@@ -540,7 +540,7 @@ if __name__ == "__main__":
         snakemake.config['run'] = "retro_vs_noretro"
         snakemake.wildcards = {"lv": "1.0"}  # lv1.0, lv1.25, lvopt
         name = "elec_s_48_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
-        suffix = "_retro"
+        suffix = "_noretro_notes"
         name = name + suffix
         snakemake.input = Dict()
         snakemake.output = Dict(

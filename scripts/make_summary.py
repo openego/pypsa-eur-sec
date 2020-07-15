@@ -283,28 +283,24 @@ def calculate_curtailment(n, label, curtailment):
 
 def calculate_energy(n, label, energy):
 
-    # (n.one_port_components|n.branch_components):
-    for c in n.iterate_components(n.branch_components):
+    for c in n.iterate_components(n.one_port_components|n.branch_components):
 
-        if c.name in n.one_port_components:
-            c_energies = (c.pnl.p.multiply(n.snapshot_weightings, axis=0).sum()
-                          .multiply(c.df.sign).groupby(c.df.carrier).sum())
-        else:
-            print(c.name)
-            c_energies = pd.Series(0., c.df.carrier.unique())
-#            test2 = pd.Series(0.,c.df.carrier.unique())
-            for port in [col[3:] for col in c.df.columns if col[:3] == "bus"]:
-                totals = c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum()
-                #remove values where bus is missing (bug in nomopyomo)
-                no_bus = c.df.index[c.df["bus"+port] == ""]
-                totals.loc[no_bus] = n.component_attrs[c.name].loc["p"+port,"default"]
-                c_energies -= totals.groupby(c.df.carrier).sum()
+      if c.name in n.one_port_components:
+          c_energies = c.pnl.p.multiply(n.snapshot_weightings,axis=0).sum().multiply(c.df.sign).groupby(c.df.carrier).sum()
+      else:
+          c_energies = pd.Series(0.,c.df.carrier.unique())
+          for port in [col[3:] for col in c.df.columns if col[:3] == "bus"]:
+              totals = c.pnl["p"+port].multiply(n.snapshot_weightings,axis=0).sum()
+              #remove values where bus is missing (bug in nomopyomo)
+              no_bus = c.df.index[c.df["bus"+port] == ""]
+              totals.loc[no_bus] = n.component_attrs[c.name].loc["p"+port,"default"]
+              c_energies -= totals.groupby(c.df.carrier).sum()
 
-        c_energies = pd.concat([c_energies], keys=[c.list_name])
+      c_energies = pd.concat([c_energies], keys=[c.list_name])
 
-        energy = energy.reindex(c_energies.index | energy.index)
+      energy = energy.reindex(c_energies.index|energy.index)
 
-        energy.loc[c_energies.index, label] = c_energies
+      energy.loc[c_energies.index,label] = c_energies
 
     return energy
 
@@ -447,30 +443,22 @@ def calculate_prices(n, label, prices):
     return prices
 
 
-def calculate_weighted_prices(n, label, weighted_prices):
+def calculate_weighted_prices(n,label,weighted_prices):
     # Warning: doesn't include storage units as loads
 
-    weighted_prices = weighted_prices.reindex(pd.Index(
-        ["electricity", "heat", "space heat", "urban heat", "space urban heat", "gas", "H2"]))
 
-    link_loads = {
-        "electricity": [
-            "heat pump",
-            "resistive heater",
-            "battery charger",
-            "H2 Electrolysis"],
-        "heat": ["water tanks charger"],
-        "urban heat": ["water tanks charger"],
-        "space heat": [],
-        "space urban heat": [],
-        "gas": [
-            "OCGT",
-            "gas boiler",
-            "CHP electric",
-            "CHP heat"],
-        "H2": [
-            "Sabatier",
-            "H2 Fuel Cell"]}
+    weighted_prices = weighted_prices.reindex(
+        pd.Index(["electricity", "heat", "space heat", "urban heat",
+                  "space urban heat", "gas", "H2"]))
+
+    link_loads = {"electricity" :  ["heat pump", "resistive heater",
+                                    "battery charger", "H2 Electrolysis"],
+                  "heat" : ["water tanks charger"],
+                  "urban heat" : ["water tanks charger"],
+                  "space heat" : [],
+                  "space urban heat" : [],
+                  "gas" : ["OCGT","gas boiler","CHP electric","CHP heat"],
+                  "H2" : ["Sabatier", "H2 Fuel Cell"]}
 
     for carrier in link_loads:
 
@@ -479,43 +467,40 @@ def calculate_weighted_prices(n, label, weighted_prices):
         elif carrier[:5] == "space":
             suffix = carrier[5:]
         else:
-            suffix = " " + carrier
+            suffix =  " " + carrier
 
         buses = n.buses.index[n.buses.index.str[2:] == suffix]
 
         if buses.empty:
             continue
 
-        if carrier in ["H2", "gas"]:
-            load = pd.DataFrame(index=n.snapshots, columns=buses, data=0.)
+        if carrier in ["H2","gas"]:
+            load = pd.DataFrame(index=n.snapshots,columns=buses,data=0.)
         elif carrier[:5] == "space":
-            load = heat_demand_df[buses.str[:2]].rename(
-                columns=lambda i: str(i) + suffix)
+            load = heat_demand_df[buses.str[:2]].rename(columns=lambda i: str(i)+suffix)
         else:
             load = n.loads_t.p_set[buses]
 
+
         for tech in link_loads[carrier]:
 
-            names = n.links.index[n.links.index.to_series(
-            ).str[-len(tech):] == tech]
+            names = n.links.index[n.links.index.to_series().str[-len(tech):] == tech]
 
             if names.empty:
                 continue
 
-            load += n.links_t.p0[names].groupby(
-                n.links.loc[names, "bus0"], axis=1).sum()
+            load += n.links_t.p0[names].groupby(n.links.loc[names,"bus0"],axis=1).sum()
 
-        # Add H2 Store when charging
-        # if carrier == "H2":
+        #Add H2 Store when charging
+        #if carrier == "H2":
         #    stores = n.stores_t.p[buses+ " Store"].groupby(n.stores.loc[buses+ " Store","bus"],axis=1).sum(axis=1)
         #    stores[stores > 0.] = 0.
         #    load += -stores
 
-        weighted_prices.loc[carrier, label] = (
-            load * n.buses_t.marginal_price[buses]).sum().sum() / load.sum().sum()
+        weighted_prices.loc[carrier,label] = (load*n.buses_t.marginal_price[buses]).sum().sum()/load.sum().sum()
 
         if carrier[:5] == "space":
-            print(load * n.buses_t.marginal_price[buses])
+            print(load*n.buses_t.marginal_price[buses])
 
     return weighted_prices
 
@@ -662,24 +647,26 @@ if __name__ == "__main__":
 
         # overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "retro_vs_noretro"
+        snakemake.config["run"] = "different_weather_years"
         snakemake.config['scenario']['clusters'] = [48]
-        snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, 2.0, "opt"]
+        snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
 
-          # "noretro_baseload",
-          # "baseload_noretro_tes_old",
-          # "retro_baseload",
-          # "baseload_retro_tes_old",
+           # "noretro_baseload",
+           # "noretro_notes_baseload",
+           # "retro_baseload",
+           # "retro_notes_baseload",
 #
-            "retro_new",
-            "retro_new2",
-            "retro_new3",
-            "retro_new4",
-            # "retro_other",
+            "retro_2010",
+            "retro_2012",
+            "retro_2012_new",
+            "retro_2013",
+            "retro_2013_new",
+            "retro_2014",
+            # "retro_2017",
+
             # "retro_notes",
             # "noretro",
-            # "noretro_other",
             # "noretro_notes",
 
             # "noretro_nodecentralgas",
@@ -691,6 +678,17 @@ if __name__ == "__main__":
 #            "2030_costs",
 #            "2040_costs",
 #            "2050_costs",
+
+            # "retro_cost0.6",
+            # "retro_cost0.8",
+            # "retro_cost1.0",
+            # "retro_cost1.2",
+            # "retro_cost1.4",
+
+            # "retro_exogenously",
+            # "retro_endogenously",
+            # "noretro",
+
 
         ]
         snakemake.input = Dict()
