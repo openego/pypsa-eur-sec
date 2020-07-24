@@ -318,7 +318,7 @@ if __name__ == "__main__":
             snakemake.config = yaml.safe_load(f)
         snakemake.input = Dict()
         snakemake.output = Dict()
-        snakemake.config['run'] = "different_weather_years"
+        snakemake.config['run'] = "retro_vs_noretro"
 
         for item in ["costs", "energy", "balances"]:
             snakemake.input[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=snakemake.config['run'],item=item)

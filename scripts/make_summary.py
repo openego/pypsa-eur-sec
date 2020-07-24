@@ -647,7 +647,7 @@ if __name__ == "__main__":
 
         # overwrite some options
         snakemake.config['results_dir'] = "results/"
-        snakemake.config["run"] = "different_weather_years"
+        snakemake.config["run"] = "retro_vs_noretro"
         snakemake.config['scenario']['clusters'] = [48]
         snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
@@ -657,12 +657,12 @@ if __name__ == "__main__":
            # "retro_baseload",
            # "retro_notes_baseload",
 #
-            "retro_2010",
-            "retro_2012",
-            "retro_2012_new",
-            "retro_2013",
-            "retro_2013_new",
-            "retro_2014",
+            # "retro_2010",
+            # "retro_2012",
+            # "retro_2012_new",
+            # "retro_2013",
+            # "retro_2013_new",
+            # "retro_2014",
             # "retro_2017",
 
             # "retro_notes",
@@ -678,6 +678,14 @@ if __name__ == "__main__":
 #            "2030_costs",
 #            "2040_costs",
 #            "2050_costs",
+            "noretro_nodecentralgas_notes",
+            "noretro_nodecentralgas",
+            "noretro_notes",
+            "noretro",
+            "retro_nodecentralgas_notes",
+            "retro_nodecentralgas",
+            "retro_notes",
+            "retro",
 
             # "retro_cost0.6",
             # "retro_cost0.8",
