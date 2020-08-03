@@ -177,6 +177,7 @@ rule build_industrial_demand:
 rule build_retro_cost_curves:
     input:
         building_stock="data/retro/data_building_stock.csv",
+	u_values_PL="data/retro/u_values_poland.csv",
         tax_w="data/retro/electricity_taxes_eu.csv",
         construction_index="data/retro/comparative_level_investment.csv",
         average_surface="data/retro/average_surface_components.csv",

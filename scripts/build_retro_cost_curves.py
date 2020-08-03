@@ -44,13 +44,12 @@ interest_rate = 0.04
 
 annualise_cost = False  # annualise the investment costs
 tax_weighting = False   # weight costs depending on taxes in countries
-construction_index = True   # weight costs depending on costruction_index
+construction_index = True   # weight costs depending on labour/material costs per ct
 plot = True
 
-l_strength = ["0.0025", "0.01", "0.015", "0.02", "0.03", "0.04", "0.06", "0.09", "0.095",
-              "0.1", "0.11", "0.15", "0.2", "0.3", "0.4", "0.5"]
-# ["0.0025", "0.01", "0.015", "0.02", "0.03", "0.04", "0.06", "0.09", "0.095",
-#               "0.1", "0.11", "0.15", "0.2", "0.3", "0.4", "0.5"] #["0.09", "0.2"]  # additional insulation thickness
+# additional insulation thickness
+l_strength = ["0.09", "0.2"]
+
 # strenght of relative retrofitting depending on the component
 # determined by historical data of insulation thickness for retrofitting
 l_weight = pd.DataFrame({"weight": [1.95, 1.48, 1.]},
@@ -58,23 +57,22 @@ l_weight = pd.DataFrame({"weight": [1.95, 1.48, 1.]},
 
 # mapping missing countries by neighbours
 map_for_missings = {
-    "AL": ["BG", "RO", "ES"],
+    "AL": ["BG", "RO", "GR"],
     "BA": ["HR"],
     "RS": ["BG", "RO", "HR", "HU"],
-    "MK": ["BG", "ES"],
+    "MK": ["BG", "GR"],
     "ME": ["BA", "AL", "RS", "HR"],
     "CH": ["SE", "DE"],
     "NO": ["SE"],
-    "PL": ["DE", "CZ", "HR"]
-    }  # TODO: missing u-values of Poland should be added from eurostat
+    }
 
-# data = ([3.5]*int(0.5*len(l_strength))) + ([1.3]*int(0.5*len(l_strength)))
+
 u_w_l = pd.Series([float(l) for l in l_strength], index=l_strength)
 u_w_l = u_w_l.apply(lambda x: window_limit(x))
 
 u_w = pd.Series([float(l) for l in l_strength], index=l_strength)
 u_w = u_w.apply(lambda x: u_retro(x))
-# u_w_l = pd.Series([3.5, 1.3], index=l_strength)
+
 # %% ************ (2) DATA ***************************************************
 
 # building data --------------------------------------------------------------
@@ -90,6 +88,7 @@ building_data["type"].replace(
         'Roof ': 'Roof',
         'Floor ': 'Floor'},
     inplace=True)
+
 building_data.country_code = building_data.country_code.str.upper()
 building_data["subsector"].replace(
     {'Hotels and Restaurants': 'Hotels and restaurants'}, inplace=True)
@@ -166,7 +165,7 @@ for ct in missing_area_ct:
 
 
 # u_values for poland are missing -> take them from eurostat
-u_values_PL = pd.read_csv("/home/ws/bw0928/Dokumente/pypsa-eur-sec/data/retro/u_values_poland.csv")
+u_values_PL = pd.read_csv(snakemake.input.u_values_PL)
 area_PL = area.loc["Poland"].reset_index()
 data_PL = pd.DataFrame(columns=u_values.columns, index=area_PL.index)
 data_PL["country"] = "Poland"
@@ -202,10 +201,8 @@ cost_retro.rename(index={"Window": "Windows", "Wall": "Walls"}, inplace=True)
 
 
 # windows
-# u_window = ([1.34]*int(0.5*len(l_strength))) + ([0.8]*int(0.5*len(l_strength)))
-u_window = u_w
 cost_window = u_w.apply(lambda x: window_cost(x))
-windows = pd.DataFrame({'u_values': u_window, 'costs': cost_window},
+windows = pd.DataFrame({'u_values': u_w, 'costs': cost_window},
                        index=l_strength)
 # windows = pd.DataFrame({'u_values': [1.34, 0.8], 'costs': [180.08, 225]},
 #                        index=l_strength)
@@ -412,6 +409,7 @@ if 'snakemake' not in globals():
             sector_opts="[Co2L0p0-24H-T-H-B-I]"),
         input=dict(
             building_stock="data/retro/data_building_stock.csv",
+            u_values_PL="data/retro/u_values_poland.csv",
             tax_w="data/retro/electricity_taxes_eu.csv",
             construction_index="data/retro/comparative_level_investment.csv",
             average_surface="data/retro/average_surface_components.csv",
