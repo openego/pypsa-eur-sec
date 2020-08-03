@@ -351,7 +351,7 @@ def calculate_cost_energy_curve(u_values, l_strength, l_weight, average_surface_
 
 # %% **************** MAIN ************************************************
 if __name__ == "__main__":
-    # %% for testing
+    #  for testing
     if 'snakemake' not in globals():
         import yaml
         import os
