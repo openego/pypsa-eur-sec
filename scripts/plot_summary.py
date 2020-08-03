@@ -163,6 +163,8 @@ def plot_costs():
 
     ax.grid(axis="y", zorder=0)
 
+    # ax.legend(handles, labels, ncol=2, bbox_to_anchor=(1,1.05))
+
     ax.legend(handles, labels, ncol=4, loc='lower left', bbox_to_anchor= (0.0, 1.01, 0.0, 0.9))
 
     # fig.tight_layout()

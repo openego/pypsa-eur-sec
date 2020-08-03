@@ -15,11 +15,12 @@ if 'snakemake' not in globals():
     import yaml
     snakemake = Dict()
     with open('config.yaml') as f:
-        snakemake.config = yaml.load(f)
+        snakemake.config = yaml.safe_load(f)
     snakemake.input = Dict()
     snakemake.output = Dict()
 
     snakemake.input["urban_percent"] = "data/urban_percent.csv"
+    snakemake.input["nuts3_shapes"] = '../pypsa-eur/resources/nuts3_shapes.geojson'
 
 cutout = atlite.Cutout(snakemake.config['atlite']['cutout_name'],
                        cutout_dir=snakemake.config['atlite']['cutout_dir'])

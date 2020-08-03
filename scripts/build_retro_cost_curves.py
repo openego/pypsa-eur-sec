@@ -25,6 +25,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 pd.options.mode.chained_assignment = None
+
+#%% **************************************************************************
+# windows
+def window_limit(l):
+    return -20*l + 5.3
+
+def u_retro(l):
+    return max(-4.9*l + 1.781, 0.8)
+
+def window_cost(u):
+    return -83.1851*u+291.548
+
 # %%  ******** (1) ASSUMPTIONS - PARAMETERS **********************************
 
 k = 0.035   # thermal conductivity standard value
@@ -56,12 +68,6 @@ map_for_missings = {
     "PL": ["DE", "CZ", "HR"]
     }  # TODO: missing u-values of Poland should be added from eurostat
 
-# windows
-def window_limit(l):
-    return -20*l + 5.3
-
-def u_retro(l):
-    return max(-4.9*l + 1.781, 0.8)
 # data = ([3.5]*int(0.5*len(l_strength))) + ([1.3]*int(0.5*len(l_strength)))
 u_w_l = pd.Series([float(l) for l in l_strength], index=l_strength)
 u_w_l = u_w_l.apply(lambda x: window_limit(x))
@@ -97,6 +103,7 @@ components = list(u_values.type.unique())
 building_types = list(u_values.subsector.unique())
 
 country_iso_dic = building_data.set_index("country")["country_code"].to_dict()
+
 # add missing /rename countries
 country_iso_dic.update({'Norway': 'NO',
                         'Iceland': 'IS',
@@ -157,6 +164,30 @@ for ct in missing_area_ct:
     else:
         area_tot.loc[averaged_data.index] = averaged_data
 
+
+# u_values for poland are missing -> take them from eurostat
+u_values_PL = pd.read_csv("/home/ws/bw0928/Dokumente/pypsa-eur-sec/data/retro/u_values_poland.csv")
+area_PL = area.loc["Poland"].reset_index()
+data_PL = pd.DataFrame(columns=u_values.columns, index=area_PL.index)
+data_PL["country"] = "Poland"
+data_PL["country_code"] = "PL"
+# data from area
+for col in ["sector", "subsector", "bage"]:
+    data_PL[col] = area_PL[col]
+data_PL["btype"] = area_PL["subsector"]
+#%%
+# data from eurostat
+data_PL_final = pd.DataFrame()
+for component in components:
+    data_PL["type"] = component
+    data_PL["value"] = data_PL.apply(lambda x: u_values_PL[(u_values_PL.component=="Roof")
+                                                           & (u_values_PL.sector==x["sector"])]
+                                     [x["bage"]].iloc[0], axis=1)
+    data_PL_final = data_PL_final.append(data_PL)
+
+u_values = pd.concat([u_values,
+                      data_PL_final]).reset_index(drop=True)
+#%%
 #  only take considered countries into account
 countries = ct_total.index
 area_tot = area_tot.loc[countries]
@@ -169,8 +200,6 @@ cost_retro = pd.read_csv(snakemake.input.cost_germany,
 cost_retro.index = cost_retro.index.str.capitalize()
 cost_retro.rename(index={"Window": "Windows", "Wall": "Walls"}, inplace=True)
 
-def window_cost(u):
-    return -83.1851*u+291.548
 
 # windows
 # u_window = ([1.34]*int(0.5*len(l_strength))) + ([0.8]*int(0.5*len(l_strength)))
