@@ -25,58 +25,36 @@ import pandas as pd
 import matplotlib.pyplot as plt
 pd.options.mode.chained_assignment = None
 
-# %% for testing
-if 'snakemake' not in globals():
-    import yaml
-    import os
-    from vresutils.snakemake import MockSnakemake
-    os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
-    snakemake = MockSnakemake(
-        wildcards=dict(
-            network='elec',
-            simpl='',
-            clusters='38',
-            lv='1',
-            opts='Co2L-3H',
-            sector_opts="[Co2L0p0-24H-T-H-B-I]"),
-        input=dict(
-            building_stock="data/retro/data_building_stock.csv",
-            u_values_PL="data/retro/u_values_poland.csv",
-            tax_w="data/retro/electricity_taxes_eu.csv",
-            construction_index="data/retro/comparative_level_investment.csv",
-            average_surface="data/retro/average_surface_components.csv",
-            floor_area_missing="data/retro/floor_area_missing.csv",
-            clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
-            cost_germany="data/retro/retro_cost_germany.csv"),
-        output=dict(
-            retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
-            floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv")
-    )
-    with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
-        snakemake.config = yaml.safe_load(f)
-    os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
-
 #%% ************ FUCNTIONS ***************************************************
 
 # windows ---------------------------------------------------------------
-def window_limit(l):
+def window_limit(l, window_assumptions):
     """
     define limit u value from which on window is retrofitted
     """
-    return -20*l + 5.3
+    m = (window_assumptions.diff()["u_limit"] /
+         window_assumptions.diff()["strength"]).dropna().iloc[0]
+    a = window_assumptions["u_limit"][0] - m * window_assumptions["strength"][0]
+    return m*l + a
 
-def u_retro_window(l):
+def u_retro_window(l, window_assumptions):
     """
     define retrofitting value depending on renovation strength
     """
-    return max(-4.9*l + 1.781, 0.8)
+    m = (window_assumptions.diff()["u_value"] /
+         window_assumptions.diff()["strength"]).dropna().iloc[0]
+    a = window_assumptions["u_value"][0] - m * window_assumptions["strength"][0]
+    return max(m*l + a, 0.8)
 
-def window_cost(u, cost_retro):
+def window_cost(u, cost_retro, window_assumptions):
     """
     get costs for new windows depending on u value
 
     """
-    window_cost = -83.1851*u+291.548
+    m = (window_assumptions.diff()["cost"] /
+         window_assumptions.diff()["u_value"]).dropna().iloc[0]
+    a = window_assumptions["cost"][0] - m * window_assumptions["u_value"][0]
+    window_cost = m*u + a
     if annualise_cost:
         window_cost = window_cost * interest_rate / (1 - (1 + interest_rate)
                       ** -cost_retro.loc["Windows", "life_time"])
@@ -106,8 +84,8 @@ def calculate_new_u(u_values, l, l_weight, k=0.035):
                                  k / ((k / x.value) +
                                       (float(l) * l_weight.loc[x.type][0]))
                                  if x.type!="Windows"
-                             else (min(x.value, u_retro_window(float(l)))
-                                   if x.value>window_limit(float(l)) else x.value),
+                             else (min(x.value, u_retro_window(float(l), window_assumptions))
+                                   if x.value>window_limit(float(l), window_assumptions) else x.value),
                              axis=1)
 
 def calculate_dE(u_values, l, average_surface_w):
@@ -134,10 +112,10 @@ def calculate_costs(u_values, l, cost_retro, average_surface):
                               average_surface.loc[x.assumed_subsector, x.type] /
                               average_surface.loc[x.assumed_subsector, "surface"]
                               if x.type!="Windows"
-                              else (window_cost(x[l], cost_retro) *
+                              else (window_cost(x[l], cost_retro, window_assumptions) *
                                                average_surface.loc[x.assumed_subsector, x.type] /
                                                average_surface.loc[x.assumed_subsector, "surface"]
-                                    if x.value>window_limit(float(l)) else 0),
+                                    if x.value>window_limit(float(l), window_assumptions) else 0),
                              axis=1)
 
 
@@ -291,6 +269,9 @@ def prepare_cost_retro():
     cost_retro.index = cost_retro.index.str.capitalize()
     cost_retro.rename(index={"Window": "Windows", "Wall": "Walls"}, inplace=True)
 
+    window_assumptions = pd.read_csv(snakemake.input.window_assumptions,
+                                     skiprows=[1], usecols=[0,1,2,3], nrows=2)
+
     if annualise_cost:
         cost_retro[["cost_fix", "cost_var"]] = (cost_retro[["cost_fix", "cost_var"]]
                                                 .apply(lambda x: x * interest_rate /
@@ -298,7 +279,7 @@ def prepare_cost_retro():
                                                         ** -cost_retro.loc[x.index,
                                                                            "life_time"])))
 
-    return cost_retro
+    return cost_retro, window_assumptions
 
 
 def calculate_cost_energy_curve(u_values, l_strength, l_weight, average_surface_w,
@@ -370,6 +351,37 @@ def calculate_cost_energy_curve(u_values, l_strength, l_weight, average_surface_
 
 # %% **************** MAIN ************************************************
 if __name__ == "__main__":
+    # %% for testing
+    if 'snakemake' not in globals():
+        import yaml
+        import os
+        from vresutils.snakemake import MockSnakemake
+        os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
+        snakemake = MockSnakemake(
+            wildcards=dict(
+                network='elec',
+                simpl='',
+                clusters='38',
+                lv='1',
+                opts='Co2L-3H',
+                sector_opts="[Co2L0p0-24H-T-H-B-I]"),
+            input=dict(
+                building_stock="data/retro/data_building_stock.csv",
+                u_values_PL="data/retro/u_values_poland.csv",
+                tax_w="data/retro/electricity_taxes_eu.csv",
+                construction_index="data/retro/comparative_level_investment.csv",
+                average_surface="data/retro/average_surface_components.csv",
+                floor_area_missing="data/retro/floor_area_missing.csv",
+                clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
+                cost_germany="data/retro/retro_cost_germany.csv",
+                window_assumptions="data/retro/window_assumptions.csv"),
+            output=dict(
+                retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
+                floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv")
+        )
+        with open('/home/ws/bw0928/Dokumente/pypsa-eur-sec/config.yaml', encoding='utf8') as f:
+            snakemake.config = yaml.safe_load(f)
+        os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/scripts")
 
 #  ******** (1) ASSUMPTIONS - PARAMETERS **********************************
     k = 0.035   # thermal conductivity standard value
@@ -381,7 +393,7 @@ if __name__ == "__main__":
     plot = False
 
     # additional insulation thickness
-    l_strength = ["0.09", "0.2"]
+    l_strength = ["0.077", "0.197"]
 
     # strenght of relative retrofitting depending on the component
     # determined by historical data of insulation thickness for retrofitting
@@ -406,7 +418,7 @@ if __name__ == "__main__":
      area_tot, area, country_iso_dic, countries) = prepare_building_stock_data()
 
     # costs for retrofitting -------------------------------------------------
-    cost_retro = prepare_cost_retro()
+    cost_retro, window_assumptions = prepare_cost_retro()
 
     # weightings of costs
     if construction_index:
