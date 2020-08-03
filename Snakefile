@@ -183,7 +183,8 @@ rule build_retro_cost_curves:
         average_surface="data/retro/average_surface_components.csv",
         floor_area_missing="data/retro/floor_area_missing.csv",
         clustered_pop_layout="resources/pop_layout_{network}_s{simpl}_{clusters}.csv",
-        cost_germany="data/retro/retro_cost_germany.csv"
+        cost_germany="data/retro/retro_cost_germany.csv",
+	window_assumptions="data/retro/window_assumptions.csv"
     output:
         retro_cost="resources/retro_cost_{network}_s{simpl}_{clusters}.csv",
         floor_area="resources/floor_area_{network}_s{simpl}_{clusters}.csv"

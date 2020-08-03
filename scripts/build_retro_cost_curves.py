@@ -393,7 +393,7 @@ if __name__ == "__main__":
     plot = False
 
     # additional insulation thickness
-    l_strength = ["0.077", "0.197"]
+    l_strength = ["0.076", "0.197"]
 
     # strenght of relative retrofitting depending on the component
     # determined by historical data of insulation thickness for retrofitting
