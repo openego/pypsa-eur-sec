@@ -940,40 +940,42 @@ def add_storage(network):
                  carrier="H2")
 
     network.madd("Bus",
-                 nodes + " gas",
+                 ["EU gas"],
                  carrier="gas")
 
+    gas_nodes = network.buses[network.buses.carrier=="gas"].index
+
     network.madd("Bus",
-                 nodes + " gas Store",
+                 gas_nodes + " Store",
                  carrier="gas")
 
     network.madd("Store",
-                 nodes + " gas Store",
-                 bus=nodes + " gas Store",
+                 gas_nodes + " Store",
+                 bus=gas_nodes + " Store",
                  e_cyclic=True,
                  e_nom_extendable=True,
                  carrier="gas",
                  capital_cost=costs.at['gas storage', 'fixed'])
 
     network.madd("Link",
-                 nodes + " gas Store charger",
-                 bus0=nodes + " gas",
-                 bus1=nodes + " gas Store",
+                 gas_nodes + " gas Store charger",
+                 bus0=gas_nodes,
+                 bus1=gas_nodes + " Store",
                  carrier="gas Store charger",
                  capital_cost=costs.at['gas storage charger', 'fixed'],
                  p_nom_extendable=True)
 
     network.madd("Link",
-                 nodes + "  gas Store discharger",
-                 bus0=nodes + " gas Store",
-                 bus1=nodes + " gas",
+                 gas_nodes + "  gas Store discharger",
+                 bus0=gas_nodes + " Store",
+                 bus1=gas_nodes,
                  carrier="gas Store discharger",
                  capital_cost=costs.at['gas storage discharger', 'fixed'],
                  p_nom_extendable=True)
 
     network.madd("Generator",
-                 nodes + " fossil gas",
-                 bus=nodes + " gas",
+                 gas_nodes + " fossil gas",
+                 bus=gas_nodes,
                  p_nom_extendable=True,
                  carrier="gas",
                  capital_cost=0.,
@@ -1013,7 +1015,7 @@ def add_storage(network):
 
     network.madd("Link",
                  nodes + " " + "OCGT",
-                 bus0=nodes + " gas",
+                 bus0=gas_nodes,
                  bus1=nodes,
                  bus2="co2 atmosphere",
                  marginal_cost=(costs.at['OCGT', 'efficiency'] *
@@ -1077,17 +1079,17 @@ def add_storage(network):
                                        'fixed'] * h2_links.length.values,
                  carrier="H2 pipeline")
 
-    gas_links = create_network_topology(n, "gas pipeline ")
+    # gas_links = create_network_topology(n, "gas pipeline ")
 
-    network.madd("Link",
-                 gas_links.index,
-                 bus0=gas_links.bus0 + " gas",
-                 bus1=gas_links.bus1 + " gas",
-                 p_min_pu=-1,
-                 p_nom_extendable=True,
-                 length=gas_links.length.values,
-                 capital_cost=costs.at["Gasnetz", "fixed"],
-                 carrier="gas pipeline")
+    # network.madd("Link",
+    #              gas_links.index,
+    #              bus0=gas_links.bus0 + " gas",
+    #              bus1=gas_links.bus1 + " gas",
+    #              p_min_pu=-1,
+    #              p_nom_extendable=True,
+    #              length=gas_links.length.values,
+    #              capital_cost=costs.at["Gasnetz", "fixed"],
+    #              carrier="gas pipeline")
 
     network.add("Carrier", "battery")
 
@@ -1125,7 +1127,7 @@ def add_storage(network):
         network.madd("Link",
                      nodes + " Sabatier",
                      bus0=nodes + " H2",
-                     bus1=nodes + " gas",
+                     bus1=gas_nodes,
                      bus2="co2 stored",
                      p_nom_extendable=True,
                      carrier="Sabatier",
@@ -1138,7 +1140,7 @@ def add_storage(network):
         network.madd("Link",
                      nodes + " helmeth",
                      bus0=nodes,
-                     bus1=nodes + " gas",
+                     bus1=gas_nodes,
                      bus2="co2 stored",
                      carrier="helmeth",
                      p_nom_extendable=True,
@@ -1150,7 +1152,7 @@ def add_storage(network):
     if options['SMR']:
         network.madd("Link",
                      nodes + " SMR CCS",
-                     bus0=nodes + " gas",
+                     bus0=gas_nodes,
                      bus1=nodes + " H2",
                      bus2="co2 atmosphere",
                      bus3="co2 stored",
@@ -1165,7 +1167,7 @@ def add_storage(network):
 
         network.madd("Link",
                      nodes + " SMR",
-                     bus0=nodes + " gas",
+                     bus0=gas_nodes,
                      bus1=nodes + " H2",
                      bus2="co2 atmosphere",
                      p_nom_extendable=True,
@@ -1258,6 +1260,8 @@ def add_transport(network):
 def add_heat(network):
     print("adding heat")
     sectors = ["residential", "services"]
+    gas_nodes = network.buses[(network.buses.carrier=="gas") &
+                         ~(network.buses.index.str.contains("Store"))].index
 
     # stores the different groups of nodes
     nodes = {}
@@ -1451,7 +1455,7 @@ def add_heat(network):
             network.madd("Link",
                          nodes[name] + " " + name + " gas boiler",
                          p_nom_extendable=True,
-                         bus0=nodes[name] + " gas",
+                         bus0=gas_nodes,
                          bus1=nodes[name] + " " + name + " heat",
                          bus2="co2 atmosphere",
                          carrier=name + " gas boiler",
@@ -1481,7 +1485,7 @@ def add_heat(network):
                 # add gas CHP; biomass CHP is added in biomass section
                 network.madd("Link",
                              nodes[name] + " urban central gas CHP electric",
-                             bus0=nodes[name] + " gas",
+                             bus0=gas_nodes,
                              bus1=nodes[name],
                              bus2="co2 atmosphere",
                              carrier="urban central gas CHP electric",
@@ -1497,7 +1501,7 @@ def add_heat(network):
 
                 network.madd("Link",
                              nodes[name] + " urban central gas CHP heat",
-                             bus0=nodes[name] + " gas",
+                             bus0=gas_nodes,
                              bus1=nodes[name] + " urban central heat",
                              bus2="co2 atmosphere",
                              carrier="urban central gas CHP heat",
@@ -1511,7 +1515,7 @@ def add_heat(network):
 
                 network.madd("Link",
                              nodes[name] + " urban central gas CHP CCS electric",
-                             bus0=nodes[name] + " gas",
+                             bus0=gas_nodes,
                              bus1=nodes[name],
                              bus2="co2 atmosphere",
                              bus3="co2 stored",
@@ -1529,7 +1533,7 @@ def add_heat(network):
 
                 network.madd("Link",
                              nodes[name] + " urban central gas CHP CCS heat",
-                             bus0=nodes[name] + " gas",
+                             bus0=gas_nodes,
                              bus1=nodes[name] + " urban central heat",
                              bus2="co2 atmosphere",
                              bus3="co2 stored",
@@ -1548,7 +1552,7 @@ def add_heat(network):
                 network.madd("Link",
                              nodes[name] + " " + name + " micro gas CHP",
                              p_nom_extendable=True,
-                             bus0=nodes[name] + " gas",
+                             bus0=gas_nodes,
                              bus1=nodes[name],
                              bus2=nodes[name] + " " + name + " heat",
                              bus3="co2 atmosphere",
@@ -1675,6 +1679,8 @@ def add_biomass(network):
     print("adding biomass")
 
     nodes = pop_layout.index
+    gas_nodes = network.buses[(network.buses.carrier=="gas") &
+                          ~(network.buses.index.str.contains("Store"))].index
 
     # biomass distributed at country level - i.e. transport within country
     # allowed
@@ -1732,7 +1738,7 @@ def add_biomass(network):
     network.madd("Link",
                  nodes + " biogas to gas",
                  bus0=biomass_pot_node.index + " biogas",
-                 bus1=biomass_pot_node.index + " gas",
+                 bus1=gas_nodes,
                  bus2="co2 atmosphere",
                  carrier="biogas to gas",
                  efficiency2=-costs.at['gas', 'CO2 intensity'],
@@ -1895,7 +1901,7 @@ def add_industry(network):
 
     network.madd("Link",
                  nodes + "gas for industry",
-                 bus0=nodes + " gas",
+                 bus0=gas_nodes,
                  bus1="gas for industry",
                  bus2="co2 atmosphere",
                  carrier="gas for industry",
@@ -1905,7 +1911,7 @@ def add_industry(network):
 
     network.madd("Link",
                  nodes + "gas for industry CCS",
-                 bus0=nodes + " gas",
+                 bus0=gas_nodes,
                  bus1="gas for industry",
                  bus2="co2 atmosphere",
                  bus3="co2 stored",
