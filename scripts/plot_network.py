@@ -195,14 +195,16 @@ def plot_map(network, components=["links", "stores", "storage_units", "generator
 
     n.plot(bus_sizes=costs / bus_size_factor,
            bus_colors=snakemake.config['plotting']['tech_colors'],
-           line_colors=dict(Line=ac_color, Link=dc_color),
-           line_widths=line_widths_exp / linewidth_factor,
+           line_colors=ac_color,
+           link_colors=dc_color,
+           line_widths=line_widths_exp["Line"] / linewidth_factor,
+           link_widths=line_widths_exp["Link"] / linewidth_factor,
            ax=ax,  boundaries=(-10, 30, 34, 70),
            color_geomap={'ocean': 'lightblue', 'land': "palegoldenrod"})
 
     handles = make_legend_circles_for(
-        [5e9, 1e9], scale=bus_size_factor, facecolor="gray")
-    labels = ["{} bEUR/a".format(s) for s in (5, 1)]
+        [20e9, 5e9], scale=bus_size_factor, facecolor="gray")
+    labels = ["{} bEUR/a".format(s) for s in (20, 5)]
     l2 = ax.legend(handles, labels,
                    loc="upper left", bbox_to_anchor=(0.01, 1.01),
                    labelspacing=1.0,
@@ -539,8 +541,8 @@ if __name__ == "__main__":
             snakemake.config = yaml.safe_load(f)
         snakemake.config['run'] = "retro_vs_noretro"
         snakemake.wildcards = {"lv": "1.0"}  # lv1.0, lv1.25, lvopt
-        name = "elec_s_48_lv{}__Co2L0-3H-T-H-B".format(snakemake.wildcards["lv"])
-        suffix = "_noretro_notes"
+        name = "elec_s_48_lv{}__Co2L0-1H-T-H-B".format(snakemake.wildcards["lv"])
+        suffix = "_noretro_nodecentralgas_notes"
         name = name + suffix
         snakemake.input = Dict()
         snakemake.output = Dict(
@@ -562,7 +564,7 @@ if __name__ == "__main__":
                       override_component_attrs=override_component_attrs)
 
     plot_map(n, components=["generators", "links", "stores", "storage_units"],
-             bus_size_factor=1.5e10, transmission=True)
+             bus_size_factor=1.8e10, transmission=True)
 
     plot_carrier_map(n, carrier="gas")
     plot_carrier_map(n, carrier="H2")

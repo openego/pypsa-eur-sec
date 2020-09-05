@@ -638,7 +638,7 @@ if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
         os.chdir("/home/ws/bw0928/Dokumente/pypsa-eur-sec/")
-        name = "elec_s_48_lv1.0__Co2L0-3H-T-H"
+        name = "elec_s_48_lv1.0__Co2L0-1H-T-H-B"
         from vresutils import Dict
         import yaml
         snakemake = Dict()
@@ -649,7 +649,7 @@ if __name__ == "__main__":
         snakemake.config['results_dir'] = "results/"
         snakemake.config["run"] = "retro_vs_noretro"
         snakemake.config['scenario']['clusters'] = [48]
-        snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.5, 1.75, "opt"]
+        snakemake.config["scenario"]["lv"] = [1.0] #, 1.125, 1.25, 1.5, 1.75, 2.0, "opt"]
         snakemake.config["scenario"]["sector_opts"] = [
 
            # "noretro_baseload",
@@ -686,6 +686,7 @@ if __name__ == "__main__":
             "retro_nodecentralgas",
             "retro_notes",
             "retro",
+            "retro_noboilers"
 
             # "retro_cost0.6",
             # "retro_cost0.8",
@@ -708,7 +709,7 @@ if __name__ == "__main__":
 
     networks_dict = {(cluster, lv, opt + sector_opt):
                      (snakemake.config['results_dir'] + snakemake.config['run']
-                     + '/postnetworks/elec_s_{}_lv{}__Co2L0-3H-T-H-B_{}.nc'.format(cluster, lv, sector_opt))
+                     + '/postnetworks/elec_s_{}_lv{}__Co2L0-1H-T-H-B_{}.nc'.format(cluster, lv, sector_opt))
                      .format(cluster=cluster,
                              opt=opt,
                              lv=lv,

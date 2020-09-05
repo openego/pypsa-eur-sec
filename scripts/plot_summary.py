@@ -112,6 +112,7 @@ def plot_costs():
             0,
             1,
             2])
+    cost_df.drop(('48', '1.0', 'retro_noboilers'), axis=1,inplace=True)
 
     df = cost_df.groupby(cost_df.index.get_level_values(2)).sum()
 
@@ -155,7 +156,7 @@ def plot_costs():
     handles.reverse()
     labels.reverse()
 
-#    ax.set_ylim([0,snakemake.config['plotting']['costs_max']])
+    #    ax.set_ylim([0,snakemake.config['plotting']['costs_max']])
     ax.set_facecolor('xkcd:light grey')
     ax.set_ylabel("System Cost [EUR billion per year]")
 
@@ -165,7 +166,7 @@ def plot_costs():
 
     # ax.legend(handles, labels, ncol=2, bbox_to_anchor=(1,1.05))
 
-    ax.legend(handles, labels, ncol=4, loc='lower left', bbox_to_anchor= (0.0, 1.01, 0.0, 0.9))
+    ax.legend(handles, labels, ncol=4, loc='lower left', bbox_to_anchor= (-0.1, 1.01,  1.0, 0.9))
 
     # fig.tight_layout()
 
@@ -331,3 +332,9 @@ if __name__ == "__main__":
     plot_energy()
 
     plot_balances()
+
+new_names = {"retro":"flexible",
+             "retro_nodecentralgas":"retro_noigas",
+             "retro_nodecentralgas_notes": "retro_noigas_notes",
+             "noretro_nodecentralgas_notes": "rigid",
+             "noretro_nodecentralgas": "noretro_noigas"}

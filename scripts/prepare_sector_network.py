@@ -1355,7 +1355,7 @@ def add_heat(network):
                 factor * (1 + options['district_heating_loss']))
 
         # distribute heat demand over one year
-        if options["base_load"]:
+        if options["baseload"]:
             print("heat demand is assumed as base load")
             base_load = heat_load.sum() / len(heat_load)
             heat_load = heat_load.apply(
@@ -2158,7 +2158,7 @@ if __name__ == "__main__":
                 clusters='48',
                 lv='2',
                 opts='Co2L-3H',
-                sector_opts="[Co2L0p0-3h-T-H-B-I]"),
+                sector_opts="[Co2L0p0-3h-T-H-B-I-retro-noigas-tes]"),
             input=dict(
                 network='../pypsa-eur/networks/{network}_s{simpl}_{clusters}.nc',
                 energy_totals_name='data/energy_totals.csv',
@@ -2257,6 +2257,18 @@ if __name__ == "__main__":
                 "Including wave generators with cost factor of",
                 wave_cost_factor)
             add_wave(n, wave_cost_factor)
+        if o[:5] == "retro":
+            print("Including building retrofitting")
+            options["retrofitting"] = True
+        if o[:3] == "tes":
+            print("Including thermal energy storage")
+            options["tes"] = True
+        if o[:6] == "noigas":
+            print("Excluding individual gas boilers")
+            options["noigas"] = True
+        if o[:8] == "baseload":
+            print("Assuming evenly distributed heat demand")
+            options["baseload"] = True
         if o[:4] == "dist":
             snakemake.config["sector"]['electricity_distribution_grid'] = True
             snakemake.config["sector"]['electricity_distribution_grid_cost_factor'] = float(o[4:].replace("p",".").replace("m","-"))
@@ -2336,7 +2348,7 @@ if __name__ == "__main__":
     if not options["h2_import"]:
         print("no h2 import")
         n.generators = n.generators[n.generators.carrier!="H2"]
-    if options["no_decentral_gas"]:
+    if options["noigas"]:
         print("no decentral gas")
         drop = ['residential rural gas boiler', 'services rural gas boiler',
                 'residential urban decentral gas boiler',
