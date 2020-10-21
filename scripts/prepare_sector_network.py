@@ -68,11 +68,10 @@ def update_wind_solar_costs(n,costs):
 
     #assign clustered bus
     #map initial network -> simplified network
-    busmap_s = pd.read_hdf(snakemake.input.clustermaps,
-                           key="/busmap_s")
+    busmap_s = pd.read_csv(snakemake.input.busmap_s, index_col=0).squeeze()
     #map simplified network -> clustered network
-    busmap = pd.read_hdf(snakemake.input.clustermaps,
-                         key="/busmap")
+    busmap = pd.read_csv(snakemake.input.busmap, index_col=0).squeeze()
+    #map initial network -> clustered network
     clustermaps = busmap_s.map(busmap)
 
     #code adapted from pypsa-eur/scripts/add_electricity.py
@@ -90,7 +89,16 @@ def update_wind_solar_costs(n,costs):
 
             #convert to aggregated clusters with weighting
             weight = ds['weight'].to_pandas()
-            connection_cost = (connection_cost*weight).groupby(clustermaps).sum()/weight.groupby(clustermaps).sum()
+
+            #e.g. clusters == 37m means that VRE generators are left
+            #at clustering of simplified network, but that they are
+            #connected to 37-node network
+            if snakemake.wildcards.clusters[-1:] == "m":
+                genmap = busmap_s
+            else:
+                genmap = clustermaps
+
+            connection_cost = (connection_cost*weight).groupby(genmap).sum()/weight.groupby(genmap).sum()
 
             capital_cost = (costs.at['offwind', 'fixed'] +
                             costs.at[tech + '-station', 'fixed'] +
@@ -655,7 +663,9 @@ def insert_electricity_distribution_grid(network):
                  lifetime=costs.at['electricity distribution grid','lifetime'],
                  capital_cost=costs.at['electricity distribution grid','fixed']*snakemake.config["sector"]['electricity_distribution_grid_cost_factor'])
 
-    loads = network.loads.index[network.loads.carrier=="electricity"]
+
+    #this catches regular electricity load and "industry electricity"
+    loads = network.loads.index[network.loads.carrier.str.contains("electricity")]
     network.loads.loc[loads,"bus"] += " low voltage"
 
     bevs = network.links.index[network.links.carrier == "BEV charger"]
@@ -667,22 +677,36 @@ def insert_electricity_distribution_grid(network):
     hps = network.links.index[network.links.carrier.str.contains("heat pump")]
     network.links.loc[hps,"bus0"] += " low voltage"
 
+    rh = network.links.index[network.links.carrier.str.contains("resistive heater")]
+    network.links.loc[rh, "bus0"] += " low voltage"
+
+    mchp = network.links.index[network.links.carrier.str.contains("micro gas")]
+    network.links.loc[mchp, "bus1"] += " low voltage"
+
     #set existing solar to cost of utility cost rather the 50-50 rooftop-utility
     solar = network.generators.index[network.generators.carrier == "solar"]
-    network.generators.loc[solar,"capital_cost"] = costs.at['solar-utility','fixed']
+    network.generators.loc[solar, "capital_cost"] = costs.at['solar-utility',
+                                                             'fixed']
+    if snakemake.wildcards.clusters[-1:] == "m":
+        pop_solar = simplified_pop_layout.total.rename(index = lambda x: x + " solar")
+    else:
+        pop_solar = pop_layout.total.rename(index = lambda x: x + " solar")
 
-    network.madd("Generator", solar,
+    # add max solar rooftop potential assuming 0.1 kW/m2 and 10 m2/person,
+    #i.e. 1 kW/person (population data is in thousands of people) so we get MW
+    potential = 0.1*10*pop_solar
+
+    network.madd("Generator",
+                 solar,
                  suffix=" rooftop",
-                 bus=network.generators.loc[solar,"bus"] + " low voltage",
+                 bus=network.generators.loc[solar, "bus"] + " low voltage",
                  carrier="solar rooftop",
                  p_nom_extendable=True,
-                 p_nom_max=network.generators.loc[solar,"p_nom_max"],
+                 p_nom_max=potential,
                  marginal_cost=network.generators.loc[solar, 'marginal_cost'],
-                 capital_cost=costs.at['solar-rooftop','fixed'],
+                 capital_cost=costs.at['solar-rooftop', 'fixed'],
                  efficiency=network.generators.loc[solar, 'efficiency'],
-                 p_max_pu=network.generators_t.p_max_pu[solar],
-                 lifetime=costs.at['solar-rooftop','lifetime'])
-
+                 p_max_pu=network.generators_t.p_max_pu[solar])
 
 
     network.add("Carrier","home battery")
@@ -720,6 +744,20 @@ def insert_electricity_distribution_grid(network):
                  marginal_cost=options['marginal_cost_storage'],
                  p_nom_extendable=True,
                  lifetime=costs.at['battery inverter','lifetime'])
+
+
+def insert_gas_distribution_costs(network):
+    f_costs = options['gas_distribution_grid_cost_factor']
+    print("Inserting gas distribution grid with investment cost\
+          factor of", f_costs)
+
+    # gas boilers
+    gas_b = network.links[network.links.carrier.str.contains("gas boiler") &
+                          (~network.links.carrier.str.contains("urban central"))].index
+    network.links.loc[gas_b, "capital_cost"] += costs.loc['electricity distribution grid']["fixed"] * f_costs
+    # micro CHPs
+    mchp = network.links.index[network.links.carrier.str.contains("micro gas")]
+    network.links.loc[mchp,  "capital_cost"] += costs.loc['electricity distribution grid']["fixed"] * f_costs
 
 def add_electricity_grid_connection(network):
 
@@ -761,21 +799,43 @@ def add_storage(network):
                  capital_cost=costs.at["fuel cell","fixed"]*costs.at["fuel cell","efficiency"], #NB: fixed cost is per MWel
                  lifetime=costs.at['fuel cell','lifetime'])
 
+    cavern_nodes = pd.DataFrame()
+
     if options['hydrogen_underground_storage']:
-        h2_capital_cost = costs.at["gas storage","fixed"]
-        #TODO: change gas storage to hydrogen underground storage when cost database is updated
-        #h2_capital_cost = costs.at["hydrogen underground storage","fixed"]
-    else:
-        h2_capital_cost = costs.at["hydrogen storage","fixed"]
+         h2_salt_cavern_potential = pd.read_csv(snakemake.input.h2_cavern,
+                                                index_col=0,squeeze=True)
+         h2_cavern_ct = h2_salt_cavern_potential[~h2_salt_cavern_potential.isna()]
+         cavern_nodes = pop_layout[pop_layout.ct.isin(h2_cavern_ct.index)]
+
+         h2_capital_cost = costs.at["hydrogen storage underground", "fixed"]
+
+         # assumptions: weight storage potential in a country by population
+         # TODO: fix with real geographic potentials
+         #convert TWh to MWh with 1e6
+         h2_pot = h2_cavern_ct.loc[cavern_nodes.ct]
+         h2_pot.index = cavern_nodes.index
+         h2_pot = h2_pot * cavern_nodes.fraction * 1e6
+
+         network.madd("Store",
+                      cavern_nodes.index + " H2 Store",
+                      bus=cavern_nodes.index + " H2",
+                      e_nom_extendable=True,
+                      e_nom_max=h2_pot.values,
+                      e_cyclic=True,
+                      carrier="H2 Store",
+                      capital_cost=h2_capital_cost)
+
+    # hydrogen stored overground
+    h2_capital_cost = costs.at["hydrogen storage tank", "fixed"]
+    nodes_overground = nodes ^ cavern_nodes.index
 
     network.madd("Store",
-                 nodes + " H2 Store",
-                 bus=nodes + " H2",
+                 nodes_overground + " H2 Store",
+                 bus=nodes_overground + " H2",
                  e_nom_extendable=True,
                  e_cyclic=True,
                  carrier="H2 Store",
-                 capital_cost=h2_capital_cost,
-                 lifetime=costs.at['gas storage','lifetime'])
+                 capital_cost=h2_capital_cost)
 
     h2_links = pd.DataFrame(columns=["bus0","bus1","length"])
     prefix = "H2 pipeline "
@@ -1573,12 +1633,18 @@ def add_industry(network):
                  carrier="low-temperature heat for industry",
                  p_set=industrial_demand.loc[nodes,"low-temperature heat"]/8760.)
 
+    #remove today's industrial electricity demand by scaling down total electricity demand
+    for ct in n.buses.country.unique():
+        loads = n.loads.index[(n.loads.index.str[:2] == ct) & (n.loads.carrier == "electricity")]
+        factor = 1 - industrial_demand.loc[loads,"current electricity"].sum()/n.loads_t.p_set[loads].sum().sum()
+        n.loads_t.p_set[loads] *= factor
+
     network.madd("Load",
                  nodes,
-                 suffix=" industry new electricity",
+                 suffix=" industry electricity",
                  bus=nodes,
-                 carrier="industry new electricity",
-                 p_set = (industrial_demand.loc[nodes,"electricity"]-industrial_demand.loc[nodes,"current electricity"])/8760.)
+                 carrier="industry electricity",
+                 p_set=industrial_demand.loc[nodes,"electricity"]/8760.)
 
     network.madd("Bus",
                  ["process emissions"],
@@ -1682,10 +1748,11 @@ if __name__ == "__main__":
                        timezone_mappings='pypsa-eur-sec/data/timezone_mappings.csv',
                        co2_budget='pypsa-eur-sec/data/co2_budget.csv',
                        clustered_pop_layout='pypsa-eur-sec/resources/pop_layout_{network}_s{simpl}_{clusters}.csv',
-                       costs='pypsa-eur-sec/data/costs/costs_{planning_horizons}.csv',
+                       costs='technology-data/outputs/costs_{planning_horizons}.csv',
                        profile_offwind_ac='pypsa-eur/resources/profile_offwind-ac.nc',
                        profile_offwind_dc='pypsa-eur/resources/profile_offwind-dc.nc',
-                       clustermaps="pypsa-eur/resources/clustermaps_{network}_s{simpl}_{clusters}.h5",
+                       busmap_s='pypsa-eur/resources/busmap_{network}_s{simpl}.csv',
+                       busmap='pypsa-eur/resources/busmap_{network}_s{simpl}_{clusters}.csv',
                        cop_air_total='pypsa-eur-sec/resources/cop_air_total_{network}_s{simpl}_{clusters}.nc',
                        cop_soil_total='pypsa-eur-sec/resources/cop_soil_total_{network}_s{simpl}_{clusters}.nc',
                        solar_thermal_total='pypsa-eur-sec/resources/solar_thermal_total_{network}_s{simpl}_{clusters}.nc',
@@ -1700,8 +1767,8 @@ if __name__ == "__main__":
             output=['pypsa-eur-sec/results/test/prenetworks/{network}_s{simpl}_{clusters}_lv{lv}__{sector_opts}_{co2_budget_name}_{planning_horizons}.nc']
         )
         import yaml
-        with open('config.yaml') as f:
-            snakemake.config = yaml.load(f)
+        with open('config.yaml', encoding='utf8') as f:
+            snakemake.config = yaml.safe_load(f)
 
 
     logging.basicConfig(level=snakemake.config['logging_level'])
@@ -1722,6 +1789,8 @@ if __name__ == "__main__":
     ct_total = pop_layout.total.groupby(pop_layout["ct"]).sum()
     pop_layout["ct_total"] = pop_layout["ct"].map(ct_total.get)
     pop_layout["fraction"] = pop_layout["total"]/pop_layout["ct_total"]
+
+    simplified_pop_layout = pd.read_csv(snakemake.input.simplified_pop_layout,index_col=0)
 
     costs = prepare_costs(snakemake.input.costs,
                           snakemake.config['costs']['USD2013_to_EUR2013'],
@@ -1823,6 +1892,8 @@ if __name__ == "__main__":
 
     if snakemake.config["sector"]['electricity_distribution_grid']:
         insert_electricity_distribution_grid(n)
+    if snakemake.config["sector"]['gas_distribution_grid']:
+        insert_gas_distribution_costs(n)
     if snakemake.config["sector"]['electricity_grid_connection']:
         add_electricity_grid_connection(n)
 
