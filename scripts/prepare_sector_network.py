@@ -69,8 +69,12 @@ def update_wind_solar_costs(n,costs):
     #assign clustered bus
     #map initial network -> simplified network
     busmap_s = pd.read_csv(snakemake.input.busmap_s, index_col=0).squeeze()
+    busmap_s.index = busmap_s.index.astype(str)
+    busmap_s = busmap_s.astype(str)
     #map simplified network -> clustered network
     busmap = pd.read_csv(snakemake.input.busmap, index_col=0).squeeze()
+    busmap.index = busmap.index.astype(str)
+    busmap = busmap.astype(str)
     #map initial network -> clustered network
     clustermaps = busmap_s.map(busmap)
 
@@ -584,13 +588,13 @@ def add_generation(network):
                      carrier=carrier,
                      capital_cost=0.) #could correct to e.g. 0.2 EUR/kWh * annuity and O&M
 
-        network.add("Generator",
-                    "EU fossil " + carrier,
-                    bus="EU " + carrier,
-                    p_nom_extendable=True,
-                    carrier=carrier,
-                    capital_cost=0.,
-                    marginal_cost=costs.at[carrier,'fuel'])
+#        network.add("Generator",
+#                    "EU fossil " + carrier,
+#                    bus="EU " + carrier,
+#                    p_nom_extendable=True,
+#                    carrier=carrier,
+#                    capital_cost=0.,
+#                    marginal_cost=costs.at[carrier,'fuel'])
 
 
         network.madd("Link",
@@ -1535,7 +1539,7 @@ def add_industry(network):
                  efficiency3=costs.at['gas','CO2 intensity']*options["ccs_fraction"],
                  lifetime=costs.at['industry CCS','lifetime'])
 
-
+#include H2 for industry. Checken ob das nur der nicht energetische H2 Bedarf ist
     network.madd("Load",
                  nodes,
                  suffix=" H2 for industry",
@@ -1544,34 +1548,34 @@ def add_industry(network):
                  p_set=industrial_demand.loc[nodes,"hydrogen"]/8760.)
 
 
-    network.madd("Load",
-                 nodes,
-                 suffix=" H2 for shipping",
-                 bus=nodes + " H2",
-                 carrier="H2 for shipping",
-                 p_set = nodal_energy_totals.loc[nodes,["total international navigation","total domestic navigation"]].sum(axis=1)*1e6*options['shipping_average_efficiency']/costs.at["fuel cell","efficiency"]/8760.)
+#    network.madd("Load",
+#                 nodes,
+#                 suffix=" H2 for shipping",
+#                 bus=nodes + " H2",
+#                 carrier="H2 for shipping",
+#                 p_set = nodal_energy_totals.loc[nodes,["total international navigation","total domestic navigation"]].sum(axis=1)*1e6*options['shipping_average_efficiency']/costs.at["fuel cell","efficiency"]/8760.)
 
-    network.madd("Bus",
-                 ["Fischer-Tropsch"],
-                 location="EU",
-                 carrier="Fischer-Tropsch")
+#    network.madd("Bus",
+#                 ["Fischer-Tropsch"],
+#                 location="EU",
+#                 carrier="Fischer-Tropsch")
 
     #use madd to get carrier inserted
-    network.madd("Store",
-                 ["Fischer-Tropsch Store"],
-                 bus="Fischer-Tropsch",
-                 e_nom_extendable=True,
-                 e_cyclic=True,
-                 carrier="Fischer-Tropsch",
-                 capital_cost=0.) #could correct to e.g. 0.001 EUR/kWh * annuity and O&M
+#    network.madd("Store",
+#                 ["Fischer-Tropsch Store"],
+#                 bus="Fischer-Tropsch",
+#                 e_nom_extendable=True,
+#                 e_cyclic=True,
+#                 carrier="Fischer-Tropsch",
+#                 capital_cost=0.) #could correct to e.g. 0.001 EUR/kWh * annuity and O&M
 
-    network.add("Generator",
-                "fossil oil",
-                bus="Fischer-Tropsch",
-                p_nom_extendable=True,
-                carrier="oil",
-                capital_cost=0.,
-                marginal_cost=costs.at["oil",'fuel'])
+#    network.add("Generator",
+#                "fossil oil",
+#                bus="Fischer-Tropsch",
+#                p_nom_extendable=True,
+#                carrier="oil",
+#                capital_cost=0.,
+#                marginal_cost=costs.at["oil",'fuel'])
 
     if options["oil_boilers"]:
 
@@ -1591,40 +1595,40 @@ def add_industry(network):
                                                 'decentral oil boiler', 'fixed'],
                          lifetime=costs.at['decentral oil boiler','lifetime'])
 
-    network.madd("Link",
-                 nodes + " Fischer-Tropsch",
-                 bus0=nodes + " H2",
-                 bus1="Fischer-Tropsch",
-                 bus2="co2 stored",
-                 carrier="Fischer-Tropsch",
-                 efficiency=costs.at["Fischer-Tropsch",'efficiency'],
-                 capital_cost=costs.at["Fischer-Tropsch",'fixed'],
-                 efficiency2=-costs.at["oil",'CO2 intensity']*costs.at["Fischer-Tropsch",'efficiency'],
-                 p_nom_extendable=True,
-                 lifetime=costs.at['Fischer-Tropsch','lifetime'])
+#    network.madd("Link",
+#                 nodes + " Fischer-Tropsch",
+#                 bus0=nodes + " H2",
+#                 bus1="Fischer-Tropsch",
+#                 bus2="co2 stored",
+#                 carrier="Fischer-Tropsch",
+#                 efficiency=costs.at["Fischer-Tropsch",'efficiency'],
+#                 capital_cost=costs.at["Fischer-Tropsch",'fixed'],
+#                 efficiency2=-costs.at["oil",'CO2 intensity']*costs.at["Fischer-Tropsch",'efficiency'],
+#                 p_nom_extendable=True,
+#                 lifetime=costs.at['Fischer-Tropsch','lifetime'])
 
-    network.madd("Load",
-                 ["naphtha for industry"],
-                 bus="Fischer-Tropsch",
-                 carrier="naphtha for industry",
-                 p_set = industrial_demand.loc[nodes,"naphtha"].sum()/8760.)
+#    network.madd("Load",
+#                 ["naphtha for industry"],
+#                 bus="Fischer-Tropsch",
+#                 carrier="naphtha for industry",
+#                 p_set = industrial_demand.loc[nodes,"naphtha"].sum()/8760.)
 
-    network.madd("Load",
-                 ["kerosene for aviation"],
-                 bus="Fischer-Tropsch",
-                 carrier="kerosene for aviation",
-                 p_set = nodal_energy_totals.loc[nodes,["total international aviation","total domestic aviation"]].sum(axis=1).sum()*1e6/8760.)
+#    network.madd("Load",
+#                 ["kerosene for aviation"],
+#                 bus="Fischer-Tropsch",
+#                 carrier="kerosene for aviation",
+#                 p_set = nodal_energy_totals.loc[nodes,["total international aviation","total domestic aviation"]].sum(axis=1).sum()*1e6/8760.)
 
     #NB: CO2 gets released again to atmosphere when plastics decay or kerosene is burned
     #except for the process emissions when naphtha is used for petrochemicals, which can be captured with other industry process emissions
     #tco2 per hour
-    co2 = network.loads.loc[["naphtha for industry","kerosene for aviation"],"p_set"].sum()*costs.at["oil",'CO2 intensity'] - industrial_demand.loc[nodes,"process emission from feedstock"].sum()/8760.
+#    co2 = network.loads.loc[["naphtha for industry","kerosene for aviation"],"p_set"].sum()*costs.at["oil",'CO2 intensity'] - industrial_demand.loc[nodes,"process emission from feedstock"].sum()/8760.
 
-    network.madd("Load",
-                 ["Fischer-Tropsch emissions"],
-                 bus="co2 atmosphere",
-                 carrier="Fischer-Tropsch emissions",
-                 p_set=-co2)
+#    network.madd("Load",
+#                 ["Fischer-Tropsch emissions"],
+#                 bus="co2 atmosphere",
+#                 carrier="Fischer-Tropsch emissions",
+#                 p_set=-co2)
 
     network.madd("Load",
                  nodes,
