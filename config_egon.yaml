@@ -94,7 +94,7 @@ sector:
   'helmeth' : False
   'dac' : True
   'co2_vent' : True
-  'SMR' : False
+  'SMR' : True
   'ccs_fraction' : 0.9
   'hydrogen_underground_storage' : True
   'use_fischer_tropsch_waste_heat' : False
@@ -102,7 +102,7 @@ sector:
   'electricity_distribution_grid' : False
   'electricity_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
   'electricity_grid_connection' : True  # only applies to onshore wind and utility PV
-  'gas_distribution_grid' : True
+  'gas_distribution_grid' : False
   'gas_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
 
 costs:
@@ -117,9 +117,9 @@ costs:
   # capital_cost:
   #   Wind: Bla
   marginal_cost: #
-    solar: 0.01
-    onwind: 0.015
-    offwind: 0.015
+    solar: 0.0
+    onwind: 0.0
+    offwind: 0.0
     hydro: 0.
     H2: 0.
     battery: 0.
