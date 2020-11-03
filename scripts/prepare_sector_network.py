@@ -1057,7 +1057,7 @@ def add_heat(network):
                                            index_col='Unnamed: 0')['dh_share']
 
         for i in urban_fraction.index:
-            fraction[i] = dh_share_per_country[i[:2]]
+            urban_fraction[i] = dh_share_per_country[i[:2]]
 
 
     for name in ["residential rural","services rural","urban central"]:
