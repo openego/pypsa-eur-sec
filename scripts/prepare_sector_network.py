@@ -1047,11 +1047,21 @@ def add_heat(network):
     nodes = create_nodes_for_heat_sector()
 
     #NB: must add costs of central heating afterwards (EUR 400 / kWpeak, 50a, 1% FOM from Fraunhofer ISE)
-
     urban_fraction = options['central_fraction']*pop_layout["urban"]/(pop_layout[["urban","rural"]].sum(axis=1))
 
-    for name in ["residential rural","services rural","residential urban decentral","services urban decentral","urban central"]:
+    if len(pop_layout==37):
+        logger.info("DH shares per country are used")
 
+        dh_share_per_country = pd.read_csv(snakemake.input.heat_demand_shares,
+                                           delimiter = ';', decimal = ',',
+                                           index_col='Unnamed: 0')['dh_share']
+
+        for i in urban_fraction.index:
+		urban_fraction[i] = dh_share_per_country[i[:2]]
+
+
+    for name in ["residential rural","services rural","urban central"]:
+    #for name in ["residential rural","services rural","residential urban decentral","services urban decentral","urban central"]:
         name_type = "central" if name == "urban central" else "decentral"
 
         network.add("Carrier",name + " heat")
@@ -1333,13 +1343,14 @@ def create_nodes_for_heat_sector():
     for sector in sectors:
         nodes[sector + " rural"] = pop_layout.index
 
-        if options["central"]:
-            urban_decentral_ct = pd.Index(["ES", "GR", "PT", "IT", "BG"])
-            nodes[sector + " urban decentral"] = pop_layout.index[pop_layout.ct.isin(urban_decentral_ct)]
-        else:
-            nodes[sector + " urban decentral"] = pop_layout.index
+        # if options["central"]:
+        #     pass
+        #     # urban_decentral_ct = pd.Index(["ES", "GR", "PT", "IT", "BG"])
+        #     # nodes[sector + " urban decentral"] = pop_layout.index[pop_layout.ct.isin(urban_decentral_ct)]
+        # else:
+        #     nodes[sector + " urban decentral"] = pop_layout.index
     # for central nodes, residential and services are aggregated
-    nodes["urban central"] = pop_layout.index ^ nodes["residential urban decentral"]
+    nodes["urban central"] = pop_layout.index #^ nodes["residential urban decentral"]
     return nodes
 
 
@@ -1762,6 +1773,7 @@ if __name__ == "__main__":
                        solar_thermal_total='pypsa-eur-sec/resources/solar_thermal_total_{network}_s{simpl}_{clusters}.nc',
                        energy_totals_name='pypsa-eur-sec/data/energy_totals.csv',
                        heat_demand_total='pypsa-eur-sec/resources/heat_demand_total_{network}_s{simpl}_{clusters}.nc',
+                       heat_demand_shares='pypsa-eur-sec/data/heat_shares.csv',
                        heat_profile='pypsa-eur-sec/data/heat_load_profile_BDEW.csv',
                        transport_name='pypsa-eur-sec/data/transport_data.csv',
                        temp_air_total='pypsa-eur-sec/resources/temp_air_total_{network}_s{simpl}_{clusters}.nc',
