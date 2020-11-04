@@ -1049,16 +1049,19 @@ def add_heat(network):
     #NB: must add costs of central heating afterwards (EUR 400 / kWpeak, 50a, 1% FOM from Fraunhofer ISE)
     urban_fraction = options['central_fraction']*pop_layout["urban"]/(pop_layout[["urban","rural"]].sum(axis=1))
 
-    if len(pop_layout==37):
-        logger.info("DH shares per country are used")
+    sh_fraction = pd.DataFrame(index=urban_fraction.index, columns=['residential space', 'services space'], dtype=float)
 
-        dh_share_per_country = pd.read_csv(snakemake.input.heat_demand_shares,
+    if len(pop_layout==37):
+        logger.info("DH shares and heat demand reduction per country are used")
+
+        shares_per_country = pd.read_csv(snakemake.input.heat_demand_shares,
                                            delimiter = ';', decimal = ',',
-                                           index_col='Unnamed: 0')['dh_share']
+                                           index_col='Unnamed: 0')
 
         for i in urban_fraction.index:
-            urban_fraction[i] = dh_share_per_country[i[:2]]
-
+            urban_fraction[i] = shares_per_country['dh_share'][i[:2]]
+            sh_fraction['residential space'][i] = shares_per_country['reduction_residential space'][i[:2]]
+            sh_fraction['services space'][i] = shares_per_country['reduction_services space'][i[:2]]
 
     for name in ["residential rural","services rural","urban central"]:
     #for name in ["residential rural","services rural","residential urban decentral","services urban decentral","urban central"]:
@@ -1081,10 +1084,14 @@ def add_heat(network):
             else:
                 factor = None
             if sector in name:
-                heat_load = heat_demand[[sector + " water",sector + " space"]].groupby(level=1,axis=1).sum()[nodes[name]].multiply(factor)
+                # Reduce only the space heating demand
+                heat_load = heat_demand[sector + " water"][nodes[name]].multiply(factor) \
+                    + heat_demand[sector + " space"][nodes[name]].multiply(factor).multiply(sh_fraction[sector + " space"][nodes[name]])
 
         if name == "urban central":
-            heat_load = heat_demand.groupby(level=1,axis=1).sum()[nodes[name]].multiply(urban_fraction[nodes[name]]*(1+options['district_heating_loss']))
+            heat_load = (heat_demand[["residential water", "services water"]].groupby(level=1,axis=1).sum()[nodes[name]]
+                        + heat_demand["residential space"][nodes[name]].multiply(sh_fraction["residential space"][nodes[name]])
+                        + heat_demand["services space"][nodes[name]].multiply(sh_fraction["services space"][nodes[name]])).multiply(factor)*(1+options['district_heating_loss'])
 
         network.madd("Load",
                      nodes[name],
