@@ -1058,6 +1058,15 @@ def add_heat(network):
                                            delimiter = ';', decimal = ',',
                                            index_col='Unnamed: 0')
 
+        # Overwrite anuual heat demands in DE, scale timeseries data
+        de_res = shares_per_country['total_twh_residential']['DE']*1e6
+        de_total_res = heat_demand.loc[:,[('residential water', 'DE0 0'), ('residential space', 'DE0 0')]].sum().sum()
+        heat_demand.loc[:, [('residential water', 'DE0 0'), ('residential space', 'DE0 0')]] *= de_res/de_total_res
+
+        de_ser = shares_per_country['total_twh_services']['DE']*1e6
+        de_total_ser = heat_demand.loc[:,[('services water', 'DE0 0'), ('services space', 'DE0 0')]].sum().sum()
+        heat_demand.loc[:, [('services water', 'DE0 0'), ('services space', 'DE0 0')]] *= de_ser/de_total_ser
+
         for i in urban_fraction.index:
             urban_fraction[i] = shares_per_country['dh_share'][i[:2]]
             sh_fraction['residential space'][i] = shares_per_country['reduction_residential space'][i[:2]]
@@ -1083,6 +1092,7 @@ def add_heat(network):
                 factor = urban_fraction[nodes[name]]
             else:
                 factor = None
+
             if sector in name:
                 # Reduce only the space heating demand
                 heat_load = heat_demand[sector + " water"][nodes[name]].multiply(factor) \
