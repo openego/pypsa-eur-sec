@@ -205,7 +205,7 @@ def extra_functionality(n, snapshots):
     #add_opts_constraints(n, opts)
     #add_eps_storage_constraint(n)
     add_chp_constraints(n)
-    add_battery_constraints(n)
+    #add_battery_constraints(n)
 
 
 def fix_branches(n, lines_s_nom=None, links_p_nom=None):

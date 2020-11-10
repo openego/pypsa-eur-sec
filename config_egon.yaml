@@ -5,7 +5,7 @@ logging_level: INFO
 results_dir: 'results/'
 summary_dir: results
 costs_dir: '../technology-data/outputs/'
-run: '20201103-nodist1-lv2'  # use this to keep track of runs with different settings
+run: '20201110-batteries-as-storage-units-2'  # use this to keep track of runs with different settings
 foresight: 'overnight' #options are overnight, myopic, perfect (perfect is not yet implemented)
 
 
@@ -193,7 +193,7 @@ plotting:
 
 
   vre_techs: ["onwind", "offwind-ac", "offwind-dc", "solar", "ror"]
-  renewable_storage_techs: ["PHS","hydro"]
+  renewable_storage_techs: ["PHS","hydro", "battery"]
   conv_techs: ["OCGT", "CCGT", "Nuclear", "Coal"]
   storage_techs: ["hydro+PHS", "battery", "H2"]
   # store_techs: ["Li ion", "water tanks"]
