@@ -871,41 +871,41 @@ def add_storage(network):
                  lifetime=costs.at['H2 pipeline','lifetime'])
 
 
-    network.add("Carrier","battery")
+#    network.add("Carrier","battery")
 
-    network.madd("Bus",
-                 nodes + " battery",
-                 location=nodes,
-                 carrier="battery")
-
-    network.madd("Store",
-                 nodes + " battery",
-                 bus=nodes + " battery",
-                 e_cyclic=True,
-                 e_nom_extendable=True,
-                 carrier="battery",
-                 capital_cost=costs.at['battery storage','fixed'],
-                 lifetime=costs.at['battery storage','lifetime'])
-
-    network.madd("Link",
-                 nodes + " battery charger",
-                 bus0=nodes,
-                 bus1=nodes + " battery",
-                 carrier="battery charger",
-                 efficiency=costs.at['battery inverter','efficiency']**0.5,
-                 capital_cost=costs.at['battery inverter','fixed'],
-                 p_nom_extendable=True,
-                 lifetime=costs.at['battery inverter','lifetime'])
-
-    network.madd("Link",
-                 nodes + " battery discharger",
-                 bus0=nodes + " battery",
-                 bus1=nodes,
-                 carrier="battery discharger",
-                 efficiency=costs.at['battery inverter','efficiency']**0.5,
-                 marginal_cost=options['marginal_cost_storage'],
-                 p_nom_extendable=True,
-                 lifetime=costs.at['battery inverter','lifetime'])
+#    network.madd("Bus",
+#                 nodes + " battery",
+#                 location=nodes,
+#                 carrier="battery")
+#
+#    network.madd("Store",
+#                 nodes + " battery",
+#                 bus=nodes + " battery",
+#                 e_cyclic=True,
+#                 e_nom_extendable=True,
+#                 carrier="battery",
+#                 capital_cost=costs.at['battery storage','fixed'],
+#                 lifetime=costs.at['battery storage','lifetime'])
+#
+#    network.madd("Link",
+#                 nodes + " battery charger",
+#                 bus0=nodes,
+#                 bus1=nodes + " battery",
+#                 carrier="battery charger",
+#                 efficiency=costs.at['battery inverter','efficiency']**0.5,
+#                 capital_cost=costs.at['battery inverter','fixed'],
+#                 p_nom_extendable=True,
+#                 lifetime=costs.at['battery inverter','lifetime'])
+#
+#    network.madd("Link",
+#                 nodes + " battery discharger",
+#                 bus0=nodes + " battery",
+#                 bus1=nodes,
+#                 carrier="battery discharger",
+#                 efficiency=costs.at['battery inverter','efficiency']**0.5,
+#                 marginal_cost=options['marginal_cost_storage'],
+#                 p_nom_extendable=True,
+#                 lifetime=costs.at['battery inverter','lifetime'])
 
 
     if options['methanation']:
