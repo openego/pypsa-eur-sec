@@ -99,10 +99,10 @@ sector:
   'hydrogen_underground_storage' : True
   'use_fischer_tropsch_waste_heat' : False
   'use_fuel_cell_waste_heat' : True
-  'electricity_distribution_grid' : False
+  'electricity_distribution_grid' : True
   'electricity_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
   'electricity_grid_connection' : True  # only applies to onshore wind and utility PV
-  'gas_distribution_grid' : False
+  'gas_distribution_grid' : True
   'gas_distribution_grid_cost_factor' : 1.0  #multiplies cost in data/costs.csv
 
 costs:
